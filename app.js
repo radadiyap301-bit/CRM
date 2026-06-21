@@ -8,6 +8,12 @@ const COMPANY_CONFIG = {
   useLogoImage: true
 };
 
+// --- Cloud Sync Configuration ---
+const CLOUD_SYNC_CONFIG = {
+  binUrl: "", // Paste your JSON bin URL here (e.g. https://api.jsonbin.io/v3/b/...)
+  apiKey: ""  // Paste your JSON bin API key/Secret here (for privacy)
+};
+
 // --- Database Initialization & State ---
 const SEED_DATA = {
   teamLeaders: [
@@ -89,7 +95,9 @@ let state = {
   filterDate: "", // Date filter for dashboard and candidate sheets
   loginType: "admin", // 'admin' or 'tl' or 'member'
   isTlAuthorized: false, // For Member view authorization
-  authorizedTlId: null // Id of TL who authorized
+  authorizedTlId: null, // Id of TL who authorized
+  cloudLastSynced: null, // Timestamp of last successful sync
+  cloudStatus: "local"   // "local", "syncing", "connected", "error"
 };
 
 // --- Helper Functions ---
@@ -104,6 +112,147 @@ function getDb() {
 
 function saveDb(data) {
   localStorage.setItem("recruit_crm_db", JSON.stringify(data));
+  if (CLOUD_SYNC_CONFIG.binUrl) {
+    pushToCloud(data);
+  }
+}
+
+async function pushToCloud(data) {
+  state.cloudStatus = "syncing";
+  renderCloudStatusWidget();
+  
+  try {
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    if (CLOUD_SYNC_CONFIG.apiKey) {
+      if (CLOUD_SYNC_CONFIG.binUrl.includes("jsonbin.io")) {
+        headers["X-Master-Key"] = CLOUD_SYNC_CONFIG.apiKey;
+        headers["X-Bin-Private"] = "true";
+      } else {
+        headers["Authorization"] = `Bearer ${CLOUD_SYNC_CONFIG.apiKey}`;
+      }
+    }
+    
+    const response = await fetch(CLOUD_SYNC_CONFIG.binUrl, {
+      method: "PUT",
+      headers: headers,
+      body: JSON.stringify(data)
+    });
+    
+    if (response.ok) {
+      state.cloudStatus = "connected";
+      state.cloudLastSynced = new Date().toISOString();
+    } else {
+      state.cloudStatus = "error";
+    }
+  } catch (error) {
+    console.error("Cloud push failed:", error);
+    state.cloudStatus = "error";
+  }
+  renderCloudStatusWidget();
+}
+
+async function pullFromCloud() {
+  if (!CLOUD_SYNC_CONFIG.binUrl) return;
+  
+  try {
+    const headers = {};
+    if (CLOUD_SYNC_CONFIG.apiKey) {
+      if (CLOUD_SYNC_CONFIG.binUrl.includes("jsonbin.io")) {
+        headers["X-Master-Key"] = CLOUD_SYNC_CONFIG.apiKey;
+      } else {
+        headers["Authorization"] = `Bearer ${CLOUD_SYNC_CONFIG.apiKey}`;
+      }
+    }
+    
+    let fetchUrl = CLOUD_SYNC_CONFIG.binUrl;
+    if (CLOUD_SYNC_CONFIG.binUrl.includes("jsonbin.io") && !CLOUD_SYNC_CONFIG.binUrl.endsWith("/latest")) {
+      fetchUrl = CLOUD_SYNC_CONFIG.binUrl + "/latest";
+    }
+    
+    const res = await fetch(fetchUrl, { headers: headers });
+    if (res.ok) {
+      const result = await res.json();
+      let cloudData = result;
+      if (result.record) {
+        cloudData = result.record;
+      }
+      
+      if (cloudData && typeof cloudData === "object" && cloudData.candidates) {
+        const localDbStr = localStorage.getItem("recruit_crm_db");
+        const cloudDbStr = JSON.stringify(cloudData);
+        
+        if (localDbStr !== cloudDbStr) {
+          localStorage.setItem("recruit_crm_db", cloudDbStr);
+          state.cloudLastSynced = new Date().toISOString();
+          state.cloudStatus = "connected";
+          renderApp();
+        } else {
+          state.cloudStatus = "connected";
+        }
+      }
+    } else {
+      state.cloudStatus = "error";
+    }
+  } catch (error) {
+    console.error("Cloud pull failed:", error);
+    state.cloudStatus = "error";
+  }
+  renderCloudStatusWidget();
+}
+
+function isCandidateOnline(candidate) {
+  if (!candidate || !candidate.lastActive) return false;
+  const lastActiveTime = new Date(candidate.lastActive).getTime();
+  const now = new Date().getTime();
+  return (now - lastActiveTime) < 180000; // 3 minutes
+}
+
+let lastActivityPush = 0;
+function updateCandidateActivity() {
+  if (state.currentUser && state.currentUser.role === "candidate") {
+    const now = Date.now();
+    if (now - lastActivityPush >= 30000) { // 30 seconds
+      lastActivityPush = now;
+      const db = getDb();
+      const candidate = db.candidates.find(c => c.id === state.currentUser.id);
+      if (candidate) {
+        candidate.lastActive = new Date().toISOString();
+        saveDb(db);
+      }
+    }
+  }
+}
+
+function renderCloudStatusWidget() {
+  const elements = document.querySelectorAll(".cloud-status-indicator");
+  if (elements.length === 0) return;
+  
+  let iconClass = "ri-cloud-off-line";
+  let color = "var(--text-muted)";
+  let text = "Local Storage Mode";
+  
+  if (CLOUD_SYNC_CONFIG.binUrl) {
+    if (state.cloudStatus === "syncing") {
+      iconClass = "ri-loader-4-line ri-spin";
+      color = "#eab308";
+      text = "Syncing Cloud...";
+    } else if (state.cloudStatus === "connected") {
+      iconClass = "ri-cloud-line";
+      color = "#10b981";
+      text = "Cloud Synced";
+    } else if (state.cloudStatus === "error") {
+      iconClass = "ri-error-warning-line";
+      color = "#ef4444";
+      text = "Sync Error";
+    }
+  }
+  
+  elements.forEach(el => {
+    el.style.color = color;
+    el.innerHTML = `<i class="${iconClass}"></i> <span>${text}</span>`;
+  });
 }
 
 function showToast(message, type = "success") {
@@ -200,6 +349,11 @@ function handleLogin(event) {
       state.currentUser = { role: "candidate", id: candidate.id, name: candidate.name, email: candidate.email };
       state.selectedCandidateId = candidate.id;
       state.currentView = "candidates-sheet"; // Candidate view
+      
+      // Update activity status on login
+      candidate.lastActive = new Date().toISOString();
+      saveDb(db);
+      
       saveSession();
       renderApp();
       showToast(`Welcome, ${candidate.name}!`);
@@ -444,6 +598,9 @@ function renderApp() {
               <span class="header-subtitle">Select a candidate and authorize with your Team Leader to open the sheet</span>
             </div>
             <div class="header-actions">
+              <div class="cloud-status-indicator" style="font-size: 11px; display: flex; align-items: center; gap: 6px; font-weight:600; color: var(--text-secondary); margin-right: 12px;">
+                <i class="ri-cloud-off-line"></i> <span>Local Storage Mode</span>
+              </div>
               <button class="btn-logout-header" onclick="handleLogout()">
                 <i class="ri-logout-box-r-line"></i> Log Out
               </button>
@@ -456,6 +613,7 @@ function renderApp() {
       </div>
     `;
     renderMemberSelectionView();
+    renderCloudStatusWidget();
     return;
   }
   
@@ -472,6 +630,7 @@ function renderApp() {
   `;
   
   renderView();
+  renderCloudStatusWidget();
 }
 
 function renderLoginScreen() {
@@ -713,6 +872,9 @@ function renderSidebar() {
       </div>
       
       <div class="sidebar-footer">
+        <div class="cloud-status-indicator" style="font-size: 11px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; font-weight:600; color: var(--text-secondary);">
+          <i class="ri-cloud-off-line"></i> <span>Local Storage Mode</span>
+        </div>
         <div class="user-profile-card">
           <div class="user-avatar">${state.currentUser.name.charAt(0)}</div>
           <div class="user-info">
@@ -761,6 +923,9 @@ function renderHeader() {
       </div>
       
       <div class="header-actions">
+        <div class="cloud-status-indicator" style="font-size: 11px; display: flex; align-items: center; gap: 6px; font-weight:600; color: var(--text-secondary); margin-right: 12px;">
+          <i class="ri-cloud-off-line"></i> <span>Local Storage Mode</span>
+        </div>
         <div class="search-bar">
           <i class="ri-search-line"></i>
           <input type="text" placeholder="Search candidate, company..." oninput="handleSearch(event)" value="${state.searchQuery}">
@@ -1071,21 +1236,25 @@ function renderDashboardView() {
             </tr>
           </thead>
           <tbody>
-            ${displayApps.length > 0 ? displayApps.map(i => `
-              <tr>
-                <td style="font-weight: 600; text-transform: capitalize;">${i.candidateName}</td>
-                <td>${i.company}</td>
-                <td>${i.role}</td>
-                <td>${i.date || 'N/A'}</td>
-                <td>
-                  <span class="tag ${i.type === 'Easy Apply' ? 'tag-success' : 'tag-purple'}">${i.type}</span>
-                </td>
-                <td>${i.interviewDate}</td>
-                <td>
-                  <span class="tag ${i.status === 'Today' ? 'tag-warning' : i.status === 'Upcoming' ? 'tag-info' : 'tag-secondary'}">${i.status}</span>
-                </td>
-              </tr>
-            `).join('') : `
+            ${displayApps.length > 0 ? displayApps.map(i => {
+              const candObj = db.candidates.find(c => c.name.toLowerCase() === i.candidateName.toLowerCase());
+              const onlineDot = (candObj && isCandidateOnline(candObj)) ? "🟢 " : "";
+              return `
+                <tr>
+                  <td style="font-weight: 600; text-transform: capitalize;">${onlineDot}${i.candidateName}</td>
+                  <td>${i.company}</td>
+                  <td>${i.role}</td>
+                  <td>${i.date || 'N/A'}</td>
+                  <td>
+                    <span class="tag ${i.type === 'Easy Apply' ? 'tag-success' : 'tag-purple'}">${i.type}</span>
+                  </td>
+                  <td>${i.interviewDate}</td>
+                  <td>
+                    <span class="tag ${i.status === 'Today' ? 'tag-warning' : i.status === 'Upcoming' ? 'tag-info' : 'tag-secondary'}">${i.status}</span>
+                  </td>
+                </tr>
+              `;
+            }).join('') : `
               <tr>
                 <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 24px;">No records found.</td>
               </tr>
@@ -1133,18 +1302,22 @@ function renderTeamLeadersView() {
             </tr>
           </thead>
           <tbody>
-            ${tls.map(t => `
-              <tr>
-                <td style="font-weight: 600; color: var(--text-secondary);">${t.id}</td>
-                <td style="font-weight: 600;">${t.name}</td>
-                <td>${t.email}</td>
-                <td>${t.membersCount} Members</td>
-                <td>${t.candidatesCount}</td>
-                <td>
-                  <button class="btn btn-secondary btn-sm" onclick="showTlDetails('${t.id}')">View Details</button>
-                </td>
-              </tr>
-            `).join('')}
+            ${tls.map(t => {
+              const membersCount = db.teamMembers.filter(m => m.tlId === t.id).length;
+              const candidatesCount = db.candidates.filter(c => c.ownerTlId === t.id).length;
+              return `
+                <tr>
+                  <td style="font-weight: 600; color: var(--text-secondary);">${t.id}</td>
+                  <td style="font-weight: 600; text-transform: capitalize;">${t.name}</td>
+                  <td>${t.email}</td>
+                  <td>${membersCount} Members</td>
+                  <td>${candidatesCount}</td>
+                  <td>
+                    <button class="btn btn-secondary btn-sm" onclick="showTlDetails('${t.id}')">View Details</button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -1257,20 +1430,23 @@ function renderTeamMembersView() {
             </tr>
           </thead>
           <tbody>
-            ${members.map((m, idx) => `
-              <tr>
-                <td style="font-weight: 600; color: var(--text-secondary);">${String(idx + 1).padStart(2, '0')}</td>
-                <td style="font-weight: 600;">${m.name}</td>
-                <td>${m.email}</td>
-                <td>${m.candidateCount} Candidates</td>
-                <td>
-                  <span class="tag tag-success">${m.access}</span>
-                </td>
-                <td>
-                  <button class="btn btn-outline btn-sm" onclick="openMemberSheet('${m.id}')">Open</button>
-                </td>
-              </tr>
-            `).join('')}
+            ${members.map((m, idx) => {
+              const candidateCount = db.candidates.filter(c => c.ownerMemberId === m.id).length;
+              return `
+                <tr>
+                  <td style="font-weight: 600; color: var(--text-secondary);">${String(idx + 1).padStart(2, '0')}</td>
+                  <td style="font-weight: 600; text-transform: capitalize;">${m.name}</td>
+                  <td>${m.email}</td>
+                  <td>${candidateCount} Candidates</td>
+                  <td>
+                    <span class="tag tag-success">${m.access}</span>
+                  </td>
+                  <td>
+                    <button class="btn btn-outline btn-sm" onclick="openMemberSheet('${m.id}')">Open</button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -1378,7 +1554,9 @@ function renderCandidatesSheetView() {
           <div class="candidate-details-row">
             <div>
               <span class="candidate-detail-label">Candidate Name:</span>
-              <span class="candidate-detail-value">${currentCandidate.name}</span>
+              <span class="candidate-detail-value" style="text-transform: capitalize;">
+                ${currentCandidate.name} ${isCandidateOnline(currentCandidate) ? '<span class="tag tag-success" style="font-size:10px; margin-left:8px; padding:2px 6px; border-radius:12px;">🟢 Online</span>' : ''}
+              </span>
             </div>
             <div>
               <span class="candidate-detail-label">Assigned Leader:</span>
@@ -1462,15 +1640,16 @@ function renderCandidatesSheetView() {
     `;
   }
   
-  return \`
+  return `
     <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
       <!-- Candidate Selector Dropdown -->
       <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
         <label style="font-size:14px; font-weight:600; color: var(--text-secondary);">Select Candidate:</label>
         <select class="login-input" style="width:220px; padding: 6px 12px;" onchange="changeActiveCandidate(this.value)">
-          ${visibleCandidates.map(c => `
-            <option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${c.name}</option>
-          `).join('')}
+          ${visibleCandidates.map(c => {
+            const onlineDot = isCandidateOnline(c) ? "🟢 " : "";
+            return `<option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${onlineDot}${c.name}</option>`;
+          }).join('')}
         </select>
         
         ${canManageCandidates ? `
@@ -1501,7 +1680,9 @@ function renderCandidatesSheetView() {
         <div class="candidate-details-row">
           <div>
             <span class="candidate-detail-label">Candidate:</span>
-            <span class="candidate-detail-value">${currentCandidate.name}</span>
+            <span class="candidate-detail-value" style="text-transform: capitalize;">
+              ${currentCandidate.name} ${isCandidateOnline(currentCandidate) ? '<span class="tag tag-success" style="font-size:10px; margin-left:8px; padding:2px 6px; border-radius:12px;">🟢 Online</span>' : ''}
+            </span>
           </div>
           <div>
             <span class="candidate-detail-label">Owner TL:</span>
@@ -1936,9 +2117,10 @@ function renderMemberSelectionView() {
           <div class="login-form-group">
             <label class="login-label">Select Candidate</label>
             <select id="auth-candidate-select" class="login-input" style="padding: 10px 12px; height:42px;" required>
-              ${candidates.map(c => `
-                <option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${c.name}</option>
-              `).join('')}
+              ${candidates.map(c => {
+                const onlineDot = isCandidateOnline(c) ? "🟢 " : "";
+                return `<option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${onlineDot}${c.name}</option>`;
+              }).join('')}
             </select>
           </div>
           
@@ -2046,8 +2228,7 @@ function lockMemberSheet() {
 
 function resetDatabase() {
   if (confirm("Are you sure you want to reset the database? This will clear all changes.")) {
-    localStorage.removeItem("recruit_crm_db");
-    getDb();
+    saveDb(SEED_DATA);
     showToast("Database reset to initial design layouts!");
     renderApp();
   }
@@ -2068,4 +2249,11 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Run app renderer
   renderApp();
+  
+  // Pull from cloud on load and set up polling
+  pullFromCloud();
+  setInterval(() => {
+    updateCandidateActivity();
+    pullFromCloud();
+  }, 10000);
 });
