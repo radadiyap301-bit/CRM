@@ -1,5 +1,13 @@
 // Recruitment CRM Dashboard - Application Logic
 
+// --- Company Brand Configuration ---
+const COMPANY_CONFIG = {
+  name: "Nexgen",
+  subtitle: "Team hiring tracker",
+  logoUrl: "logo.png",
+  useLogoImage: true
+};
+
 // --- Database Initialization & State ---
 const SEED_DATA = {
   teamLeaders: [
@@ -64,6 +72,7 @@ let state = {
   selectedTlId: null, // For TL Details popover
   selectedCandidateId: "C-01", // Active candidate in candidates sheet
   searchQuery: "",
+  filterDate: "", // Date filter for dashboard and candidate sheets
   loginType: "admin", // 'admin' or 'tl' or 'member'
   isTlAuthorized: false, // For Member view authorization
   authorizedTlId: null // Id of TL who authorized
@@ -191,6 +200,7 @@ function handleLogout() {
   state.selectedTlId = null;
   state.isTlAuthorized = false;
   state.authorizedTlId = null;
+  state.filterDate = "";
   localStorage.removeItem("recruit_crm_session");
   renderApp();
   showToast("Logged out successfully");
@@ -390,6 +400,11 @@ function handleSearch(event) {
   renderView(); // Re-renders the current view space without resetting sidebars
 }
 
+function handleDateFilterChange(event) {
+  state.filterDate = event.target.value;
+  renderView();
+}
+
 // --- Templating & Rendering ---
 
 function renderApp() {
@@ -411,7 +426,7 @@ function renderApp() {
         <div class="main-content no-sidebar">
           <div class="header">
             <div class="header-title-area">
-              <h1 class="header-title">RecruitCRM - Candidate Access</h1>
+              <h1 class="header-title">${COMPANY_CONFIG.name} - Candidate Access</h1>
               <span class="header-subtitle">Select a candidate and authorize with your Team Leader to open the sheet</span>
             </div>
             <div class="header-actions">
@@ -452,7 +467,10 @@ function renderLoginScreen() {
       <div class="login-page-container">
         <div class="login-left-panel">
           <div class="login-left-content">
-            <div class="login-brand">Recruitment CRM</div>
+            ${COMPANY_CONFIG.useLogoImage 
+              ? `<img src="${COMPANY_CONFIG.logoUrl}" alt="${COMPANY_CONFIG.name}" style="max-height: 48px; width: auto; object-fit: contain; margin-bottom: 24px; align-self: flex-start;">`
+              : `<div class="login-brand">${COMPANY_CONFIG.name}</div>`
+            }
             <div class="login-desc">Track candidates, team leaders, interviews and daily job applications in one clean system.</div>
             
             <div class="live-preview-card">
@@ -641,10 +659,13 @@ function renderSidebar() {
     <div class="sidebar">
       <div>
         <div class="sidebar-header">
-          <div class="sidebar-brand">
-            <i class="ri-radar-line" style="color: var(--primary);"></i> RecruitCRM
+          <div class="sidebar-brand" style="display: flex; align-items: center; gap: 8px;">
+            ${COMPANY_CONFIG.useLogoImage 
+              ? `<img src="${COMPANY_CONFIG.logoUrl}" alt="${COMPANY_CONFIG.name}" style="max-height: 38px; width: auto; object-fit: contain;">`
+              : `<i class="ri-radar-line" style="color: var(--primary);"></i> ${COMPANY_CONFIG.name}`
+            }
           </div>
-          <div class="sidebar-subtitle">Team hiring tracker</div>
+          <div class="sidebar-subtitle">${COMPANY_CONFIG.subtitle}</div>
         </div>
         
         <ul class="sidebar-menu">
@@ -853,6 +874,9 @@ function renderDashboardView() {
         candidateName: c.name,
         company: app.company,
         role: app.role,
+        date: app.date,
+        type: app.type,
+        link: app.link,
         interviewDate: app.interviewDate,
         status: app.status
       });
@@ -868,9 +892,19 @@ function renderDashboardView() {
       app.role.toLowerCase().includes(q)
     );
   }
+
+  // Apply Date Filter
+  if (state.filterDate) {
+    allApplications = allApplications.filter(app => app.date === state.filterDate);
+  }
   
-  // Get upcoming/today interviews
-  const sortedInterviews = allApplications.filter(a => a.status === "Today" || a.status === "Upcoming");
+  // Get upcoming/today interviews or filtered date log
+  let displayApps = [];
+  if (state.filterDate) {
+    displayApps = allApplications;
+  } else {
+    displayApps = allApplications.filter(a => a.status === "Today" || a.status === "Upcoming");
+  }
   
   return `
     <!-- Top Row Cards -->
@@ -992,10 +1026,17 @@ function renderDashboardView() {
     
     <!-- Bottom Grid (Interview Details Table) -->
     <div class="card">
-      <div class="card-header">
+      <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div>
-          <h3 class="card-title">Interview Date Details</h3>
-          <span class="card-subtitle">Upcoming and today candidate interactions</span>
+          <h3 class="card-title">${state.filterDate ? `Daily Log: ${state.filterDate}` : 'Upcoming & Today Interactions'}</h3>
+          <span class="card-subtitle">${state.filterDate ? `Candidate submissions and schedules for ${state.filterDate}` : 'Overview of scheduled candidate interviews'}</span>
+        </div>
+        
+        <!-- Date filter picker -->
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="font-size:12px; font-weight:600; color: var(--text-secondary);">Select Date:</label>
+          <input type="date" class="login-input" style="width:160px; padding: 4px 8px; height: 32px; font-size:12px;" onchange="handleDateFilterChange(event)" value="${state.filterDate}">
+          ${state.filterDate ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; height:32px; font-size:11px;" onclick="handleDateFilterChange({target:{value:''}})">Clear</button>` : ''}
         </div>
       </div>
       
@@ -1006,24 +1047,30 @@ function renderDashboardView() {
               <th>Candidate</th>
               <th>Company</th>
               <th>Role</th>
+              <th>Submission Date</th>
+              <th style="width: 170px;">Apply Type</th>
               <th>Interview Date & Time</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            ${sortedInterviews.length > 0 ? sortedInterviews.map(i => `
+            ${displayApps.length > 0 ? displayApps.map(i => `
               <tr>
                 <td style="font-weight: 600;">${i.candidateName}</td>
                 <td>${i.company}</td>
                 <td>${i.role}</td>
+                <td>${i.date || 'N/A'}</td>
+                <td>
+                  <span class="tag ${i.type === 'Easy Apply' ? 'tag-success' : 'tag-purple'}">${i.type}</span>
+                </td>
                 <td>${i.interviewDate}</td>
                 <td>
-                  <span class="tag ${i.status === 'Today' ? 'tag-warning' : 'tag-info'}">${i.status}</span>
+                  <span class="tag ${i.status === 'Today' ? 'tag-warning' : i.status === 'Upcoming' ? 'tag-info' : 'tag-secondary'}">${i.status}</span>
                 </td>
               </tr>
             `).join('') : `
               <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 24px;">No upcoming interviews found</td>
+                <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 24px;">No records found.</td>
               </tr>
             `}
           </tbody>
@@ -1272,9 +1319,14 @@ function renderCandidatesSheetView() {
   if (currentCandidate) {
     appsToRender = [...currentCandidate.applications];
     
+    // Filter by date if active
+    if (state.filterDate) {
+      appsToRender = appsToRender.filter(a => a.date === state.filterDate);
+    }
+    
     // Check if we should append a placeholder row
     let shouldAddPlaceholder = false;
-    if (canEdit) {
+    if (canEdit && !state.filterDate) {
       if (appsToRender.length === 0) {
         shouldAddPlaceholder = true;
       } else {
@@ -1320,9 +1372,16 @@ function renderCandidatesSheetView() {
               <span class="candidate-detail-value">${ownerMember ? ownerMember.name : 'Unassigned'}</span>
             </div>
           </div>
-          <span style="font-size:11px; color: var(--text-secondary); margin-top:4px;">
-            View-only Mode. This sheet displays your active job applications tracked by our recruitment team.
-          </span>
+          <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap;">
+            <span style="font-size:11px; color: var(--text-secondary);">
+              View-only Mode. This sheet displays your active job applications tracked by our recruitment team.
+            </span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <label style="font-size:11px; font-weight:600; color: var(--text-secondary);">Filter by Date:</label>
+              <input type="date" class="login-input" style="width:140px; padding: 2px 6px; height: 26px; font-size:11px;" onchange="handleDateFilterChange(event)" value="${state.filterDate}">
+              ${state.filterDate ? `<button class="btn btn-outline btn-sm" style="padding:2px 6px; height:26px; font-size:10px;" onclick="handleDateFilterChange({target:{value:''}})">Clear</button>` : ''}
+            </div>
+          </div>
         </div>
         
         <!-- Excel-style applications table -->
@@ -1387,9 +1446,9 @@ function renderCandidatesSheetView() {
   }
   
   return \`
-    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
       <!-- Candidate Selector Dropdown -->
-      <div style="display:flex; align-items:center; gap:12px;">
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
         <label style="font-size:14px; font-weight:600; color: var(--text-secondary);">Select Candidate:</label>
         <select class="login-input" style="width:220px; padding: 6px 12px;" onchange="changeActiveCandidate(this.value)">
           ${visibleCandidates.map(c => `
@@ -1400,6 +1459,13 @@ function renderCandidatesSheetView() {
         ${canManageCandidates ? `
           <button class="btn btn-secondary btn-sm" onclick="triggerQuickAddCandidate()"><i class="ri-add-line"></i> Add Candidate</button>
         ` : ''}
+        
+        <!-- Date Filter Picker -->
+        <div style="display:flex; align-items:center; gap:6px; margin-left: 12px;">
+          <label style="font-size:13px; font-weight:600; color: var(--text-secondary);">Filter Date:</label>
+          <input type="date" class="login-input" style="width:155px; padding: 4px 8px; height: 32px; font-size:12px;" onchange="handleDateFilterChange(event)" value="${state.filterDate}">
+          ${state.filterDate ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; height:32px; font-size:11px;" onclick="handleDateFilterChange({target:{value:''}})">Clear</button>` : ''}
+        </div>
       </div>
       
       <div style="display:flex; gap:10px;">
