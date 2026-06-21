@@ -11,56 +11,70 @@ const COMPANY_CONFIG = {
 // --- Database Initialization & State ---
 const SEED_DATA = {
   teamLeaders: [
-    { id: "TL-01", userId: "TL001", name: "Dhruv Mehta", email: "dhruv@company.com", password: "password123", membersCount: 6, candidatesCount: 620, permission: "Add candidates only" },
-    { id: "TL-02", userId: "TL002", name: "Nisha Patel", email: "nisha@company.com", password: "password123", membersCount: 5, candidatesCount: 480, permission: "Add candidates only" },
-    { id: "TL-03", userId: "TL003", name: "Ravi Sharma", email: "ravi@company.com", password: "password123", membersCount: 4, candidatesCount: 390, permission: "Add candidates only" },
-    { id: "TL-04", userId: "TL004", name: "Priya Desai", email: "priya@company.com", password: "password123", membersCount: 7, candidatesCount: 560, permission: "Add candidates only" }
+    { id: "TL-01", userId: "TL001", name: "parth radadiya", email: "parth@nexgen.com", password: "password123", membersCount: 1, candidatesCount: 2, permission: "Add candidates only" },
+    { id: "TL-02", userId: "TL002", name: "raj golani", email: "raj@nexgen.com", password: "password123", membersCount: 1, candidatesCount: 2, permission: "Add candidates only" },
+    { id: "TL-03", userId: "TL003", name: "vinay", email: "vinay@nexgen.com", password: "password123", membersCount: 1, candidatesCount: 1, permission: "Add candidates only" },
+    { id: "TL-04", userId: "TL004", name: "parth C", email: "parthc@nexgen.com", password: "password123", membersCount: 0, candidatesCount: 0, permission: "Add candidates only" },
+    { id: "TL-05", userId: "TL005", name: "tushar", email: "tushar@nexgen.com", password: "password123", membersCount: 0, candidatesCount: 0, permission: "Add candidates only" }
   ],
   teamMembers: [
-    { id: "TM-01", name: "Karan Patel", email: "karan@company.com", password: "password123", candidateCount: 86, access: "View only", tlId: "TL-01" },
-    { id: "TM-02", name: "Jignesh Solanki", email: "jignesh@company.com", password: "password123", candidateCount: 73, access: "View only", tlId: "TL-01" },
-    { id: "TM-03", name: "Mansi Shah", email: "mansi@company.com", password: "password123", candidateCount: 58, access: "View only", tlId: "TL-01" },
-    { id: "TM-04", name: "Neel Desai", email: "neel@company.com", password: "password123", candidateCount: 42, access: "View only", tlId: "TL-01" },
-    { id: "TM-05", name: "Rakesh Verma", email: "rakesh@company.com", password: "password123", candidateCount: 95, access: "View only", tlId: "TL-02" },
-    { id: "TM-06", name: "Hina Vyas", email: "hina@company.com", password: "password123", candidateCount: 64, access: "View only", tlId: "TL-02" }
+    { id: "TM-01", name: "Karan Patel", email: "karan@nexgen.com", password: "password123", candidateCount: 2, access: "View only", tlId: "TL-01" },
+    { id: "TM-02", name: "Jignesh Solanki", email: "jignesh@nexgen.com", password: "password123", candidateCount: 2, access: "View only", tlId: "TL-02" },
+    { id: "TM-03", name: "Mansi Shah", email: "mansi@nexgen.com", password: "password123", candidateCount: 1, access: "View only", tlId: "TL-03" }
   ],
   candidates: [
     {
       id: "C-01",
-      name: "Amit Patel",
-      email: "amit@gmail.com",
+      name: "surya manoj",
+      email: "surya@gmail.com",
       password: "password123",
       ownerTlId: "TL-01",
       ownerMemberId: "TM-01",
       applications: [
         { srNo: 1, company: "TCS", role: "US IT Recruiter", date: "2026-06-21", type: "Easy Apply", link: "linkedin.com/jobs/123", interviewDate: "21 Jun, 11:30 AM", status: "Today" },
         { srNo: 2, company: "Wipro", role: "Talent Sourcer", date: "2026-06-21", type: "External Application", link: "wipro.com/careers", interviewDate: "22 Jun, 02:00 PM", status: "Upcoming" },
-        { srNo: 3, company: "Infosys", role: "HR Executive", date: "2026-06-21", type: "Easy Apply", link: "linkedin.com/jobs/456", interviewDate: "Pending", status: "Pending" },
-        { srNo: 4, company: "Accelius Global", role: "BDE", date: "2026-06-22", type: "External Application", link: "company.com/apply", interviewDate: "24 Jun, 04:00 PM", status: "Upcoming" },
-        { srNo: 5, company: "Aptus Pharma", role: "QC / Marketing", date: "2026-06-22", type: "Easy Apply", link: "linkedin.com/jobs/789", interviewDate: "Pending", status: "Pending" }
+        { srNo: 3, company: "Infosys", role: "HR Executive", date: "2026-06-22", type: "Easy Apply", link: "linkedin.com/jobs/456", interviewDate: "Pending", status: "Pending" }
       ]
     },
     {
       id: "C-02",
-      name: "Rahul Shah",
-      email: "rahul@gmail.com",
+      name: "manish",
+      email: "manish@gmail.com",
       password: "password123",
       ownerTlId: "TL-01",
       ownerMemberId: "TM-01",
       applications: [
-        { srNo: 1, company: "Wipro", role: "Talent Sourcer", date: "2026-06-22", type: "Easy Apply", link: "wipro.com/careers", interviewDate: "22 Jun, 02:00 PM", status: "Upcoming" }
+        { srNo: 1, company: "Wipro", role: "Talent Sourcer", date: "2026-06-21", type: "Easy Apply", link: "wipro.com/careers", interviewDate: "22 Jun, 02:00 PM", status: "Upcoming" }
       ]
     },
     {
       id: "C-03",
-      name: "Meera Joshi",
-      email: "meera@gmail.com",
+      name: "akansha",
+      email: "akansha@gmail.com",
       password: "password123",
-      ownerTlId: "TL-01",
+      ownerTlId: "TL-02",
       ownerMemberId: "TM-02",
       applications: [
-        { srNo: 1, company: "Infosys", role: "HR Executive", date: "2026-06-23", type: "Easy Apply", link: "linkedin.com/jobs/456", interviewDate: "23 Jun, 10:00 AM", status: "Upcoming" }
+        { srNo: 1, company: "Infosys", role: "HR Executive", date: "2026-06-21", type: "Easy Apply", link: "linkedin.com/jobs/456", interviewDate: "21 Jun, 10:00 AM", status: "Today" }
       ]
+    },
+    {
+      id: "C-04",
+      name: "madhu",
+      email: "madhu@gmail.com",
+      password: "password123",
+      ownerTlId: "TL-02",
+      ownerMemberId: "TM-02",
+      applications: []
+    },
+    {
+      id: "C-05",
+      name: "prem",
+      email: "prem@gmail.com",
+      password: "password123",
+      ownerTlId: "TL-03",
+      ownerMemberId: "TM-03",
+      applications: []
     }
   ]
 };
@@ -857,14 +871,18 @@ function renderDashboardView() {
   const db = getDb();
   
   // Calculate dynamic stats
-  let totalCandidates = 0;
-  db.teamLeaders.forEach(t => totalCandidates += t.candidatesCount);
+  const totalCandidates = db.candidates.length;
+  const activeTeams = db.teamLeaders.length;
   
-  // Calculate today applications
-  const todayAppsCount = 186; // Seeding dashboard values
+  // Calculate today's applications count (based on actual applications date matching today)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAppsCount = db.candidates.reduce((acc, c) => {
+    return acc + c.applications.filter(a => a.date === todayStr).length;
+  }, 0);
+  
   const interviewsCount = db.candidates.reduce((acc, c) => {
     return acc + c.applications.filter(a => a.status === "Today").length;
-  }, 0) + 14; // baseline + db today entries
+  }, 0);
   
   // Filter interviews table
   let allApplications = [];
@@ -878,7 +896,8 @@ function renderDashboardView() {
         type: app.type,
         link: app.link,
         interviewDate: app.interviewDate,
-        status: app.status
+        status: app.status,
+        ownerTlId: c.ownerTlId
       });
     });
   });
@@ -905,16 +924,60 @@ function renderDashboardView() {
   } else {
     displayApps = allApplications.filter(a => a.status === "Today" || a.status === "Upcoming");
   }
+
+  // Calculate last 7 days chart dynamically
+  const last7Days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+    
+    const count = db.candidates.reduce((acc, c) => {
+      return acc + c.applications.filter(a => a.date === dateStr).length;
+    }, 0);
+    
+    last7Days.push({ dayName, dateStr, count });
+  }
+  const maxCount = Math.max(...last7Days.map(d => d.count), 1);
+
+  // Generate dynamic chart HTML
+  const chartHtml = last7Days.map(d => {
+    const heightPercent = (d.count / maxCount) * 80 + 5;
+    return `
+      <div class="chart-bar-wrapper">
+        <div class="chart-bar" style="height: ${heightPercent}%;" data-value="${d.count}"></div>
+        <span class="chart-label">${d.dayName}</span>
+      </div>
+    `;
+  }).join('');
+
+  // Calculate Team-wise Tracking dynamically
+  const teamTrackerHtml = db.teamLeaders.map(tl => {
+    const tlCandidates = db.candidates.filter(c => c.ownerTlId === tl.id);
+    const appCount = tlCandidates.reduce((acc, c) => acc + c.applications.length, 0);
+    const interviewCount = tlCandidates.reduce((acc, c) => {
+      return acc + c.applications.filter(a => a.status === "Today" || a.status === "Upcoming").length;
+    }, 0);
+    
+    return `
+      <div class="team-track-item">
+        <span class="team-name" style="text-transform: capitalize;">${tl.name} Team</span>
+        <span class="team-apps">${appCount} applications</span>
+        <span class="tag tag-info">${interviewCount} active</span>
+      </div>
+    `;
+  }).join('');
   
   return `
     <!-- Top Row Cards -->
     <div class="stats-grid">
       <div class="card stats-card">
         <span class="stats-label">Total Candidates</span>
-        <span class="stats-value">3,248</span>
+        <span class="stats-value">${totalCandidates}</span>
         <div class="stats-footer">
-          <span class="tag tag-success">+12.5%</span>
-          <span style="color: var(--text-secondary);">active tracking</span>
+          <span class="tag tag-success">Active</span>
+          <span style="color: var(--text-secondary);">tracking profiles</span>
         </div>
       </div>
       
@@ -922,8 +985,8 @@ function renderDashboardView() {
         <span class="stats-label">Today Applications</span>
         <span class="stats-value">${todayAppsCount}</span>
         <div class="stats-footer">
-          <span class="tag tag-info">+28 today</span>
-          <span style="color: var(--text-secondary);">from last hour</span>
+          <span class="tag tag-info">Submissions</span>
+          <span style="color: var(--text-secondary);">on current date</span>
         </div>
       </div>
       
@@ -932,16 +995,16 @@ function renderDashboardView() {
         <span class="stats-value">${interviewsCount}</span>
         <div class="stats-footer">
           <span class="tag tag-warning" style="cursor:pointer;" onclick="switchView('interview-calendar')">Schedule</span>
-          <span style="color: var(--text-secondary);">scheduled slots</span>
+          <span style="color: var(--text-secondary);">slots pending</span>
         </div>
       </div>
       
       <div class="card stats-card">
         <span class="stats-label">Active Teams</span>
-        <span class="stats-value">08</span>
+        <span class="stats-value">${activeTeams}</span>
         <div class="stats-footer">
-          <span class="tag tag-purple">Team wise</span>
-          <span style="color: var(--text-secondary);">hiring active</span>
+          <span class="tag tag-purple">Active Leads</span>
+          <span style="color: var(--text-secondary);">teams tracking</span>
         </div>
       </div>
     </div>
@@ -959,34 +1022,7 @@ function renderDashboardView() {
         
         <!-- Custom HTML/CSS Bar Chart matching Figma -->
         <div class="chart-container">
-          <div class="chart-bar-wrapper">
-            <div class="chart-bar" style="height: 48%;" data-value="98"></div>
-            <span class="chart-label">Mon</span>
-          </div>
-          <div class="chart-bar-wrapper">
-            <div class="chart-bar" style="height: 68%;" data-value="134"></div>
-            <span class="chart-label">Tue</span>
-          </div>
-          <div class="chart-bar-wrapper">
-            <div class="chart-bar" style="height: 58%;" data-value="112"></div>
-            <span class="chart-label">Wed</span>
-          </div>
-          <div class="chart-bar-wrapper">
-            <div class="chart-bar" style="height: 85%;" data-value="168"></div>
-            <span class="chart-label">Thu</span>
-          </div>
-          <div class="chart-bar-wrapper">
-            <div class="chart-bar" style="height: 72%;" data-value="142"></div>
-            <span class="chart-label">Fri</span>
-          </div>
-          <div class="chart-bar-wrapper">
-            <div class="chart-bar" style="height: 98%;" data-value="186"></div>
-            <span class="chart-label">Sat</span>
-          </div>
-          <div class="chart-bar-wrapper">
-            <div class="chart-bar" style="height: 80%;" data-value="159"></div>
-            <span class="chart-label">Sun</span>
-          </div>
+          ${chartHtml}
         </div>
       </div>
       
@@ -1000,26 +1036,7 @@ function renderDashboardView() {
         </div>
         
         <div class="team-track-list">
-          <div class="team-track-item">
-            <span class="team-name">Dhruv Team</span>
-            <span class="team-apps">62 applications</span>
-            <span class="tag tag-info">8 interviews</span>
-          </div>
-          <div class="team-track-item">
-            <span class="team-name">Nisha Team</span>
-            <span class="team-apps">48 applications</span>
-            <span class="tag tag-info">5 interviews</span>
-          </div>
-          <div class="team-track-item">
-            <span class="team-name">Ravi Team</span>
-            <span class="team-apps">39 applications</span>
-            <span class="tag tag-info">3 interviews</span>
-          </div>
-          <div class="team-track-item">
-            <span class="team-name">Priya Team</span>
-            <span class="team-apps">37 applications</span>
-            <span class="tag tag-info">1 interview</span>
-          </div>
+          ${teamTrackerHtml || '<div style="color: var(--text-secondary); padding: 12px; font-size:12px;">No team data available</div>'}
         </div>
       </div>
     </div>
@@ -1056,7 +1073,7 @@ function renderDashboardView() {
           <tbody>
             ${displayApps.length > 0 ? displayApps.map(i => `
               <tr>
-                <td style="font-weight: 600;">${i.candidateName}</td>
+                <td style="font-weight: 600; text-transform: capitalize;">${i.candidateName}</td>
                 <td>${i.company}</td>
                 <td>${i.role}</td>
                 <td>${i.date || 'N/A'}</td>
