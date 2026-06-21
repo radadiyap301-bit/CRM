@@ -20,6 +20,8 @@ const SEED_DATA = {
     {
       id: "C-01",
       name: "Amit Patel",
+      email: "amit@gmail.com",
+      password: "password123",
       ownerTlId: "TL-01",
       ownerMemberId: "TM-01",
       applications: [
@@ -33,6 +35,8 @@ const SEED_DATA = {
     {
       id: "C-02",
       name: "Rahul Shah",
+      email: "rahul@gmail.com",
+      password: "password123",
       ownerTlId: "TL-01",
       ownerMemberId: "TM-01",
       applications: [
@@ -42,6 +46,8 @@ const SEED_DATA = {
     {
       id: "C-03",
       name: "Meera Joshi",
+      email: "meera@gmail.com",
+      password: "password123",
       ownerTlId: "TL-01",
       ownerMemberId: "TM-02",
       applications: [
@@ -162,6 +168,22 @@ function handleLogin(event) {
       showToast("Invalid Member Email or Password!", "error");
     }
   }
+  else if (state.loginType === "candidate") {
+    const email = document.getElementById("login-candidate-email").value;
+    const password = document.getElementById("login-candidate-password").value;
+    
+    const candidate = db.candidates.find(c => c.email === email && c.password === password);
+    if (candidate) {
+      state.currentUser = { role: "candidate", id: candidate.id, name: candidate.name, email: candidate.email };
+      state.selectedCandidateId = candidate.id;
+      state.currentView = "candidates-sheet"; // Candidate view
+      saveSession();
+      renderApp();
+      showToast(`Welcome, ${candidate.name}!`);
+    } else {
+      showToast("Invalid Candidate Email or Password!", "error");
+    }
+  }
 }
 
 function handleLogout() {
@@ -264,6 +286,8 @@ function handleCreateCandidate(event) {
   const db = getDb();
   
   const name = document.getElementById("add-cand-name").value;
+  const email = document.getElementById("add-cand-email").value;
+  const password = document.getElementById("add-cand-password").value;
   const memberId = document.getElementById("add-cand-member").value;
   
   let tlId = "TL-01";
@@ -274,6 +298,8 @@ function handleCreateCandidate(event) {
   const newCandidate = {
     id: `C-0${db.candidates.length + 1}`,
     name,
+    email,
+    password,
     ownerTlId: tlId,
     ownerMemberId: memberId,
     applications: []
@@ -376,6 +402,8 @@ function renderApp() {
   }
   
   const isMember = state.currentUser.role === "member";
+  const isCandidate = state.currentUser.role === "candidate";
+  const noSidebar = isMember || isCandidate;
   
   if (isMember && !state.isTlAuthorized) {
     app.innerHTML = `
@@ -404,8 +432,8 @@ function renderApp() {
   
   app.innerHTML = `
     <div class="main-layout">
-      ${isMember ? '' : renderSidebar()}
-      <div class="main-content ${isMember ? 'no-sidebar' : ''}">
+      ${noSidebar ? '' : renderSidebar()}
+      <div class="main-content ${noSidebar ? 'no-sidebar' : ''}">
         ${renderHeader()}
         <div class="container-fluid" id="view-container">
           <!-- Render View here -->
@@ -451,6 +479,7 @@ function renderLoginScreen() {
               <button class="login-tab-btn active" onclick="switchLoginType('admin')">Admin</button>
               <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
               <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
+              <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
             </div>
             
             <div class="login-card-header">
@@ -489,6 +518,7 @@ function renderLoginScreen() {
             <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
             <button class="login-tab-btn active" onclick="switchLoginType('tl')">Team Lead</button>
             <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
+            <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
           </div>
           
           <div class="login-card-header">
@@ -517,7 +547,7 @@ function renderLoginScreen() {
         </div>
       </div>
     `;
-  } else {
+  } else if (state.loginType === "member") {
     // Team Member Login layout
     return `
       <div class="login-center-layout">
@@ -526,6 +556,7 @@ function renderLoginScreen() {
             <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
             <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
             <button class="login-tab-btn active" onclick="switchLoginType('member')">Team Member</button>
+            <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
           </div>
           
           <div class="login-card-header">
@@ -549,6 +580,44 @@ function renderLoginScreen() {
             <div class="info-box" style="margin-top:24px; background-color: var(--warning-bg); border-color:#ffe0b2;">
               <div class="info-box-title" style="font-size:12px; margin-bottom:4px; color: var(--warning-text);">View-only access</div>
               <div class="info-box-content" style="font-size:11px; color: var(--warning-text);">Members can view sheet and copy links, but cannot edit protected fields.</div>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+  } else {
+    // Candidate Login layout
+    return `
+      <div class="login-center-layout">
+        <div class="login-card">
+          <div class="login-switch-tab">
+            <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
+            <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
+            <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
+            <button class="login-tab-btn active" onclick="switchLoginType('candidate')">Candidate</button>
+          </div>
+          
+          <div class="login-card-header">
+            <h2 class="login-card-title">Candidate Login</h2>
+            <div class="login-card-subtitle">Log in with your personal email to view your recruitment sheet.</div>
+          </div>
+          
+          <form onsubmit="handleLogin(event)">
+            <div class="login-form-group">
+              <label class="login-label">Personal Email Address</label>
+              <input type="email" id="login-candidate-email" class="login-input" required value="amit@gmail.com" placeholder="amit@gmail.com">
+            </div>
+            
+            <div class="login-form-group">
+              <label class="login-label">Password</label>
+              <input type="password" id="login-candidate-password" class="login-input" required value="password123" placeholder="••••••••">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Login as Candidate</button>
+            
+            <div class="info-box" style="margin-top:24px; background-color: var(--primary-light); border-color:#b3d4ff; color: var(--primary);">
+              <div class="info-box-title" style="font-size:12px; margin-bottom:4px;">View-only Candidate Sheet</div>
+              <div class="info-box-content" style="font-size:11px; color: var(--text-secondary);">Candidates have read-only access to their personal application tracking sheet.</div>
             </div>
           </form>
         </div>
@@ -646,6 +715,8 @@ function renderHeader() {
   const showAddBtn = state.currentUser.role === 'admin' || (state.currentUser.role === 'tl' && state.currentView === 'team-members');
   
   const isMember = state.currentUser.role === 'member';
+  const isCandidate = state.currentUser.role === 'candidate';
+  const noSidebar = isMember || isCandidate;
   
   return `
     <div class="header">
@@ -664,7 +735,7 @@ function renderHeader() {
           <button class="btn btn-primary" onclick="triggerQuickAdd()"><i class="ri-add-line"></i> Add</button>
         ` : ''}
         
-        ${isMember ? `
+        ${noSidebar ? `
           <button class="btn-logout-header" onclick="handleLogout()">
             <i class="ri-logout-box-r-line"></i> Log Out
           </button>
@@ -730,6 +801,10 @@ function populateCandidateModalDropdown() {
 function renderView() {
   const container = document.getElementById("view-container");
   if (!container) return;
+  
+  if (state.currentUser && state.currentUser.role === "candidate") {
+    state.currentView = "candidates-sheet";
+  }
   
   switch(state.currentView) {
     case "dashboard":
@@ -1166,6 +1241,8 @@ function renderCandidatesSheetView() {
     visibleCandidates = db.candidates.filter(c => c.ownerTlId === state.currentUser.id);
   } else if (state.currentUser.role === "member") {
     visibleCandidates = db.candidates.filter(c => c.ownerMemberId === state.currentUser.id);
+  } else if (state.currentUser.role === "candidate") {
+    visibleCandidates = db.candidates.filter(c => c.id === state.currentUser.id);
   }
   
   // If search query is present
@@ -1184,6 +1261,7 @@ function renderCandidatesSheetView() {
   // Members can also add details and edit application sheets!
   const canEdit = state.currentUser.role === "admin" || state.currentUser.role === "tl" || state.currentUser.role === "member";
   const canManageCandidates = state.currentUser.role === "admin" || state.currentUser.role === "tl";
+  const isCandidate = state.currentUser.role === "candidate";
   
   // Find owner TL and Member details
   const ownerTl = currentCandidate ? db.teamLeaders.find(t => t.id === currentCandidate.ownerTlId) : null;
@@ -1222,8 +1300,93 @@ function renderCandidatesSheetView() {
       });
     }
   }
+
+  if (isCandidate) {
+    return `
+      ${currentCandidate ? `
+        <!-- Active Candidate Details Block -->
+        <div class="candidate-detail-header-card">
+          <div class="candidate-details-row">
+            <div>
+              <span class="candidate-detail-label">Candidate Name:</span>
+              <span class="candidate-detail-value">${currentCandidate.name}</span>
+            </div>
+            <div>
+              <span class="candidate-detail-label">Assigned Leader:</span>
+              <span class="candidate-detail-value">${ownerTl ? ownerTl.name : 'Unassigned'}</span>
+            </div>
+            <div>
+              <span class="candidate-detail-label">Assigned Executive:</span>
+              <span class="candidate-detail-value">${ownerMember ? ownerMember.name : 'Unassigned'}</span>
+            </div>
+          </div>
+          <span style="font-size:11px; color: var(--text-secondary); margin-top:4px;">
+            View-only Mode. This sheet displays your active job applications tracked by our recruitment team.
+          </span>
+        </div>
+        
+        <!-- Excel-style applications table -->
+        <div class="card" style="padding: 0;">
+          <div class="table-responsive">
+            <table class="custom-table candidate-grid-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">Sr No</th>
+                  <th>Company Name</th>
+                  <th>Role</th>
+                  <th style="width: 130px;">Date</th>
+                  <th style="width: 170px;">Apply Type</th>
+                  <th>Link</th>
+                  <th>Interview Date/Time</th>
+                  <th style="width: 80px;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${appsToRender.map(app => `
+                  <tr data-srno="${app.srNo}">
+                    <td style="font-weight:600; text-align:center; color: var(--text-muted);">${app.srNo}</td>
+                    <td>${app.company}</td>
+                    <td>${app.role}</td>
+                    <td>${app.date}</td>
+                    <td>
+                      <span class="tag ${app.type === 'Easy Apply' ? 'tag-success' : 'tag-purple'}">${app.type}</span>
+                    </td>
+                    <td>
+                      ${app.link ? `<a href="https://${app.link}" target="_blank" style="display:flex; align-items:center; gap:4px;"><i class="ri-external-link-line"></i> ${app.link}</a>` : ''}
+                    </td>
+                    <td>${app.interviewDate}</td>
+                    <td>
+                      ${app.link ? `<button class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size:11px;" onclick="copyToClipboard('https://${app.link}')">Copy</button>` : ''}
+                    </td>
+                  </tr>
+                `).join('')}
+                ${appsToRender.length === 0 ? `
+                  <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 24px;">No applications added yet.</td>
+                  </tr>
+                ` : ''}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Bottom information sheets -->
+        <div class="sheet-details-bottom-grid">
+          <div class="info-box">
+            <div class="info-box-title">About this sheet</div>
+            <div class="info-box-content">This spreadsheet lists all application details sent/processed on your behalf. If you see any discrepancy, please contact your assigned executive.</div>
+          </div>
+        </div>
+      ` : `
+        <div class="card" style="text-align: center; padding: 48px; color: var(--text-secondary);">
+          <i class="ri-user-unfollow-line" style="font-size:48px; display:block; margin-bottom:16px;"></i>
+          <h3>No candidates found</h3>
+        </div>
+      `}
+    `;
+  }
   
-  return `
+  return \`
     <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <!-- Candidate Selector Dropdown -->
       <div style="display:flex; align-items:center; gap:12px;">
