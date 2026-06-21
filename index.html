@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RecruitCRM - Premium Recruitment Dashboard</title>
+  
+  <!-- Remix Icons for sleek modern UI icons -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet" />
+  
+  <!-- Link to the premium styling -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Root application container for single-page rendering -->
+  <div id="app"></div>
+
+  <!-- --- MODAL: Add Team Leader --- -->
+  <div id="modal-add-tl" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Team Leader</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-add-tl')"><i class="ri-close-line"></i></button>
+      </div>
+      <form id="form-add-tl" onsubmit="handleCreateTL(event)">
+        <div class="login-form-group">
+          <label class="login-label">Team Leader Name</label>
+          <input type="text" id="add-tl-name" class="login-input" required placeholder="e.g. Dhruv Mehta">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Email Address</label>
+          <input type="email" id="add-tl-email" class="login-input" required placeholder="e.g. dhruv@company.com">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">User ID (for Login)</label>
+          <input type="text" id="add-tl-userid" class="login-input" required placeholder="e.g. TL001">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Login Password</label>
+          <input type="password" id="add-tl-password" class="login-input" required placeholder="Enter password">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-tl')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Team Leader</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- --- MODAL: Add Team Member --- -->
+  <div id="modal-add-member" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Team Member</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-add-member')"><i class="ri-close-line"></i></button>
+      </div>
+      <form id="form-add-member" onsubmit="handleCreateMember(event)">
+        <div class="login-form-group">
+          <label class="login-label">Member Name</label>
+          <input type="text" id="add-member-name" class="login-input" required placeholder="e.g. Karan Patel">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Email Address</label>
+          <input type="email" id="add-member-email" class="login-input" required placeholder="e.g. karan@company.com">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Initial Password</label>
+          <input type="password" id="add-member-password" class="login-input" required placeholder="Enter password">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Candidate Access Permission</label>
+          <select id="add-member-access" class="login-input">
+            <option value="View only">View only</option>
+            <option value="Edit application rows">Edit application rows</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-member')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Member</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- --- MODAL: Add Candidate --- -->
+  <div id="modal-add-candidate" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Add New Candidate</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-add-candidate')"><i class="ri-close-line"></i></button>
+      </div>
+      <form id="form-add-candidate" onsubmit="handleCreateCandidate(event)">
+        <div class="login-form-group">
+          <label class="login-label">Candidate Name</label>
+          <input type="text" id="add-cand-name" class="login-input" required placeholder="e.g. Amit Patel">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Assign Team Member (Optional)</label>
+          <select id="add-cand-member" class="login-input">
+            <!-- Populated dynamically via JS -->
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-candidate')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Candidate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Global Toast Notification -->
+  <div id="toast" class="toast-notification">
+    <i class="ri-checkbox-circle-fill"></i>
+    <span id="toast-message">Success message here</span>
+  </div>
+
+  <!-- Main logic JS -->
+  <script src="app.js"></script>
+</body>
+</html>

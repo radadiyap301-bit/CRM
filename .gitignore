@@ -1,0 +1,7 @@
+# System Files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Zip Files (Large design source)
+design/*.zip
