@@ -407,6 +407,28 @@ a:hover {
   border-radius: var(--radius-sm);
 }
 
+.btn-logout-header {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition);
+  height: 38px;
+}
+
+.btn-logout-header:hover {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
 /* --- Cards / Stats --- */
 .stats-grid {
   display: grid;

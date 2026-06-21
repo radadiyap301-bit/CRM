@@ -387,7 +387,7 @@ function renderApp() {
               <span class="header-subtitle">Select a candidate and authorize with your Team Leader to open the sheet</span>
             </div>
             <div class="header-actions">
-              <button class="logout-btn" onclick="handleLogout()" style="margin-top:0; padding: 8px 14px; border: 1px solid var(--border-color); color: var(--text-secondary); height: 38px;">
+              <button class="btn-logout-header" onclick="handleLogout()">
                 <i class="ri-logout-box-r-line"></i> Log Out
               </button>
             </div>
@@ -665,7 +665,7 @@ function renderHeader() {
         ` : ''}
         
         ${isMember ? `
-          <button class="logout-btn" onclick="handleLogout()" style="margin-top:0; padding: 8px 14px; border: 1px solid var(--border-color); color: var(--text-secondary); height: 38px;">
+          <button class="btn-logout-header" onclick="handleLogout()">
             <i class="ri-logout-box-r-line"></i> Log Out
           </button>
         ` : ''}
