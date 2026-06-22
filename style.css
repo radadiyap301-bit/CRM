@@ -1243,3 +1243,67 @@ a:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Resume Badges & Action Buttons --- */
+.resume-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background-color: var(--primary-light);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-resume-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background-color: #f1f5f9;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: 13px;
+  transition: var(--transition);
+}
+
+.btn-resume-action:hover {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.btn-resume-action.btn-resume-danger:hover {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.cloud-settings-card {
+  border-top: 1px solid var(--border-color);
+  padding-top: 24px;
+  margin-top: 24px;
+}
+
+.card.clickable {
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.card.clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+
+

@@ -4,14 +4,18 @@
 const COMPANY_CONFIG = {
   name: "Nexgen",
   subtitle: "Team hiring tracker",
-  logoUrl: "logo.png",
+  logoUrl: "Logo.png",
   useLogoImage: true
 };
 
 // --- Cloud Sync Configuration ---
 const CLOUD_SYNC_CONFIG = {
-  binUrl: "", // Paste your JSON bin URL here (e.g. https://api.jsonbin.io/v3/b/...)
-  apiKey: ""  // Paste your JSON bin API key/Secret here (for privacy)
+  get binUrl() {
+    return localStorage.getItem("recruit_crm_cloud_bin_url") || "";
+  },
+  get apiKey() {
+    return localStorage.getItem("recruit_crm_cloud_api_key") || "";
+  }
 };
 
 // --- Database Initialization & State ---
@@ -77,6 +81,15 @@ const SEED_DATA = {
       id: "C-05",
       name: "prem",
       email: "prem@gmail.com",
+      password: "password123",
+      ownerTlId: "TL-03",
+      ownerMemberId: "TM-03",
+      applications: []
+    },
+    {
+      id: "C-06",
+      name: "Karan",
+      email: "Karan@gmail.com",
       password: "password123",
       ownerTlId: "TL-03",
       ownerMemberId: "TM-03",
@@ -563,6 +576,197 @@ function copyToClipboard(text) {
   });
 }
 
+// --- Resume Management Helper Functions ---
+function downloadFile(base64Data, fileName) {
+  const link = document.createElement("a");
+  link.href = base64Data;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function truncateString(str, num) {
+  if (!str) return '';
+  if (str.length <= num) return str;
+  return str.slice(0, num) + '...';
+}
+
+function renderMainResumeUI(candidate) {
+  const isAuthorizedToChange = state.currentUser.role === "admin" || state.currentUser.role === "tl";
+  if (candidate.mainResume && candidate.mainResume.name) {
+    const downloadBtn = `<button class="btn-resume-action" onclick="downloadMainResume('${candidate.id}')" title="Download Main Resume"><i class="ri-download-2-line"></i></button>`;
+    const deleteBtn = isAuthorizedToChange 
+      ? `<button class="btn-resume-action btn-resume-danger" onclick="deleteMainResume('${candidate.id}')" title="Delete Main Resume"><i class="ri-delete-bin-line"></i></button>`
+      : '';
+    return `
+      <div style="display: inline-flex; align-items: center; gap: 4px;">
+        <span class="resume-badge" title="${candidate.mainResume.name}"><i class="ri-file-text-line"></i> ${truncateString(candidate.mainResume.name, 18)}</span>
+        ${downloadBtn}
+        ${deleteBtn}
+      </div>
+    `;
+  } else {
+    if (isAuthorizedToChange) {
+      return `
+        <button class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="triggerMainResumeUpload('${candidate.id}')" title="Upload Main Resume"><i class="ri-upload-2-line"></i> Upload</button>
+        <input type="file" id="main-resume-input-${candidate.id}" style="display:none;" onchange="handleMainResumeUpload(event, '${candidate.id}')" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg">
+      `;
+    } else {
+      return `<span style="color: var(--text-muted); font-size: 11px; font-style: italic;">No resume uploaded</span>`;
+    }
+  }
+}
+
+function triggerMainResumeUpload(candId) {
+  const input = document.getElementById(`main-resume-input-${candId}`);
+  if (input) input.click();
+}
+
+function handleMainResumeUpload(event, candId) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (file.size > 1024 * 1024) { // 1MB limit
+    showToast("File is too large! Maximum allowed size is 1MB.", "error");
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const db = getDb();
+    const candidate = db.candidates.find(c => c.id === candId);
+    if (candidate) {
+      candidate.mainResume = {
+        name: file.name,
+        data: e.target.result,
+        uploadedAt: new Date().toISOString()
+      };
+      saveDb(db);
+      renderView();
+      showToast("Main Resume uploaded successfully!");
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function downloadMainResume(candId) {
+  const db = getDb();
+  const candidate = db.candidates.find(c => c.id === candId);
+  if (candidate && candidate.mainResume) {
+    downloadFile(candidate.mainResume.data, candidate.mainResume.name);
+    showToast("Downloading main resume...");
+  } else {
+    showToast("No main resume found!", "error");
+  }
+}
+
+function deleteMainResume(candId) {
+  if (!confirm("Are you sure you want to delete the main resume?")) return;
+  const db = getDb();
+  const candidate = db.candidates.find(c => c.id === candId);
+  if (candidate) {
+    delete candidate.mainResume;
+    saveDb(db);
+    renderView();
+    showToast("Main Resume deleted!");
+  }
+}
+
+function renderTailoredResumeUI(candId, app) {
+  if (app.isPlaceholder) return '';
+  
+  const isAuthorizedToChange = state.currentUser.role === "admin" || state.currentUser.role === "tl";
+  
+  if (app.tailoredResume && app.tailoredResume.name) {
+    const downloadBtn = `<button class="btn-resume-action" style="padding: 3px 6px; font-size: 11px;" onclick="downloadTailoredResume('${candId}', ${app.srNo})" title="Download Tailored Resume"><i class="ri-download-2-line"></i></button>`;
+    const deleteBtn = isAuthorizedToChange 
+      ? `<button class="btn-resume-action btn-resume-danger" style="padding: 3px 6px; font-size: 11px;" onclick="deleteTailoredResume('${candId}', ${app.srNo})" title="Delete Tailored Resume"><i class="ri-delete-bin-line"></i></button>`
+      : '';
+    return `
+      <div style="display: inline-flex; align-items: center; gap: 4px; justify-content: center;">
+        <span class="resume-badge" title="${app.tailoredResume.name}" style="font-size: 11px; padding: 2px 6px;"><i class="ri-file-text-line"></i> ${truncateString(app.tailoredResume.name, 10)}</span>
+        ${downloadBtn}
+        ${deleteBtn}
+      </div>
+    `;
+  } else {
+    if (isAuthorizedToChange) {
+      return `
+        <button class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="triggerTailoredResumeUpload('${candId}', ${app.srNo})" title="Upload Tailored Resume"><i class="ri-upload-2-line"></i> Upload</button>
+        <input type="file" id="tailored-resume-input-${candId}-${app.srNo}" style="display:none;" onchange="handleTailoredResumeUpload(event, '${candId}', ${app.srNo})" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg">
+      `;
+    } else {
+      return `<span style="color: var(--text-muted); font-size: 11px;">-</span>`;
+    }
+  }
+}
+
+function triggerTailoredResumeUpload(candId, srNo) {
+  const input = document.getElementById(`tailored-resume-input-${candId}-${srNo}`);
+  if (input) input.click();
+}
+
+function handleTailoredResumeUpload(event, candId, srNo) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (file.size > 1024 * 1024) { // 1MB limit
+    showToast("File is too large! Maximum allowed size is 1MB.", "error");
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const db = getDb();
+    const candidate = db.candidates.find(c => c.id === candId);
+    if (candidate) {
+      const app = candidate.applications.find(a => a.srNo === parseInt(srNo));
+      if (app) {
+        app.tailoredResume = {
+          name: file.name,
+          data: e.target.result,
+          uploadedAt: new Date().toISOString()
+        };
+        saveDb(db);
+        renderView();
+        showToast("Tailored Resume uploaded successfully!");
+      }
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function downloadTailoredResume(candId, srNo) {
+  const db = getDb();
+  const candidate = db.candidates.find(c => c.id === candId);
+  if (candidate) {
+    const app = candidate.applications.find(a => a.srNo === parseInt(srNo));
+    if (app && app.tailoredResume) {
+      downloadFile(app.tailoredResume.data, app.tailoredResume.name);
+      showToast("Downloading tailored resume...");
+      return;
+    }
+  }
+  showToast("Tailored resume not found!", "error");
+}
+
+function deleteTailoredResume(candId, srNo) {
+  if (!confirm(`Are you sure you want to delete the tailored resume for row ${srNo}?`)) return;
+  const db = getDb();
+  const candidate = db.candidates.find(c => c.id === candId);
+  if (candidate) {
+    const app = candidate.applications.find(a => a.srNo === parseInt(srNo));
+    if (app) {
+      delete app.tailoredResume;
+      saveDb(db);
+      renderView();
+      showToast("Tailored Resume deleted!");
+    }
+  }
+}
+
+
 function handleSearch(event) {
   state.searchQuery = event.target.value;
   renderView(); // Re-renders the current view space without resetting sidebars
@@ -1026,6 +1230,9 @@ function renderView() {
     case "settings":
       container.innerHTML = renderSettingsView();
       break;
+    case "candidates-breakdown":
+      container.innerHTML = renderCandidatesBreakdownView();
+      break;
     default:
       container.innerHTML = `<h3>View under construction</h3>`;
   }
@@ -1048,6 +1255,12 @@ function renderDashboardView() {
   const interviewsCount = db.candidates.reduce((acc, c) => {
     return acc + c.applications.filter(a => a.status === "Today").length;
   }, 0);
+
+  // Calculate new stats (Total Applications, Easy Apply, External Application)
+  const allApps = db.candidates.reduce((acc, c) => acc.concat(c.applications), []);
+  const totalApplicationsCount = allApps.length;
+  const easyAppsCount = allApps.filter(a => a.type === "Easy Apply").length;
+  const externalAppsCount = allApps.filter(a => a.type === "External Application").length;
   
   // Filter interviews table
   let allApplications = [];
@@ -1137,12 +1350,39 @@ function renderDashboardView() {
   return `
     <!-- Top Row Cards -->
     <div class="stats-grid">
-      <div class="card stats-card">
+      <div class="card stats-card clickable" onclick="switchView('candidates-breakdown')" title="Click to view candidate breakdown & warnings">
         <span class="stats-label">Total Candidates</span>
         <span class="stats-value">${totalCandidates}</span>
         <div class="stats-footer">
           <span class="tag tag-success">Active</span>
-          <span style="color: var(--text-secondary);">tracking profiles</span>
+          <span style="color: var(--text-secondary);">click to view breakdown</span>
+        </div>
+      </div>
+
+      <div class="card stats-card">
+        <span class="stats-label">Total Applications</span>
+        <span class="stats-value">${totalApplicationsCount}</span>
+        <div class="stats-footer">
+          <span class="tag tag-info">Submissions</span>
+          <span style="color: var(--text-secondary);">grand total</span>
+        </div>
+      </div>
+
+      <div class="card stats-card">
+        <span class="stats-label">Easy Apply Count</span>
+        <span class="stats-value">${easyAppsCount}</span>
+        <div class="stats-footer">
+          <span class="tag tag-success">Easy Apply</span>
+          <span style="color: var(--text-secondary);">one-click jobs</span>
+        </div>
+      </div>
+
+      <div class="card stats-card">
+        <span class="stats-label">External Applications</span>
+        <span class="stats-value">${externalAppsCount}</span>
+        <div class="stats-footer">
+          <span class="tag tag-purple">External</span>
+          <span style="color: var(--text-secondary);">manual apply</span>
         </div>
       </div>
       
@@ -1257,6 +1497,134 @@ function renderDashboardView() {
             }).join('') : `
               <tr>
                 <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 24px;">No records found.</td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// Candidates Breakdown View (Clicked from Dashboard Total Candidates stats card)
+function renderCandidatesBreakdownView() {
+  const db = getDb();
+  
+  // Calculate stats for each candidate
+  let breakdownData = db.candidates.map(candidate => {
+    const totalApps = candidate.applications.length;
+    const easyCount = candidate.applications.filter(a => a.type === "Easy Apply").length;
+    const externalCount = candidate.applications.filter(a => a.type === "External Application").length;
+    
+    // Find Owner TL & Member details
+    const tl = db.teamLeaders.find(t => t.id === candidate.ownerTlId);
+    const member = db.teamMembers.find(m => m.id === candidate.ownerMemberId);
+    
+    // Warning status: if Easy Apply is strictly more than External Application
+    const showWarning = easyCount > externalCount;
+    
+    return {
+      id: candidate.id,
+      name: candidate.name,
+      email: candidate.email,
+      tlName: tl ? tl.name : "Unassigned",
+      memberName: member ? member.name : "Unassigned",
+      totalApps,
+      easyCount,
+      externalCount,
+      showWarning,
+      rawCandidate: candidate // store original candidate object for helper functions like isCandidateOnline
+    };
+  });
+  
+  // Filter search
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    breakdownData = breakdownData.filter(c => 
+      c.name.toLowerCase().includes(q) || 
+      c.email.toLowerCase().includes(q) ||
+      c.tlName.toLowerCase().includes(q) ||
+      c.memberName.toLowerCase().includes(q)
+    );
+  }
+  
+  const warnedCandidates = breakdownData.filter(c => c.showWarning);
+  const totalWarned = warnedCandidates.length;
+  
+  return `
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div>
+        <button class="btn btn-outline btn-sm" onclick="switchView('dashboard')" style="padding: 6px 12px; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
+          <i class="ri-arrow-left-line"></i> Back to Dashboard
+        </button>
+      </div>
+      <div>
+        <span style="font-size:13px; font-weight:600; color: var(--text-secondary);">
+          Total Candidates: <span style="color: var(--text-primary); font-weight:700;">${breakdownData.length}</span>
+        </span>
+      </div>
+    </div>
+
+    ${totalWarned > 0 ? `
+      <div class="sheet-disclaimer-banner" style="background-color: var(--warning-bg); border-color: #ffe0b2; color: var(--warning-text); display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+        <i class="ri-alert-line" style="font-size:18px;"></i>
+        <span><strong>Attention Required:</strong> ${totalWarned} candidate(s) have a high "Easy Apply" ratio compared to "External Applications". We recommend diversifying submission strategies.</span>
+      </div>
+    ` : ''}
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Candidate Applications Breakdown</h3>
+          <span class="card-subtitle">Detailed audit showing application counts by submission channel and ratio balance warning flags</span>
+        </div>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Candidate Name</th>
+              <th>Email</th>
+              <th>Assigned Team Lead</th>
+              <th>Assigned Executive</th>
+              <th style="text-align: center;">Total Applications</th>
+              <th style="text-align: center;">Easy Apply</th>
+              <th style="text-align: center;">External Application</th>
+              <th>Ratio Warning Alert</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${breakdownData.length > 0 ? breakdownData.map(c => `
+              <tr>
+                <td style="font-weight:600; text-transform: capitalize;">
+                  ${isCandidateOnline(c.rawCandidate) ? '🟢 ' : ''}${c.name}
+                </td>
+                <td>${c.email}</td>
+                <td style="text-transform: capitalize;">${c.tlName}</td>
+                <td style="text-transform: capitalize;">${c.memberName}</td>
+                <td style="font-weight: 700; text-align: center; color: var(--primary);">${c.totalApps}</td>
+                <td style="text-align: center;">
+                  <span class="tag tag-success" style="font-weight:600; padding: 2px 8px;">${c.easyCount}</span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="tag tag-purple" style="font-weight:600; padding: 2px 8px;">${c.externalCount}</span>
+                </td>
+                <td>
+                  ${c.showWarning ? `
+                    <span class="tag tag-warning" style="display:inline-flex; align-items:center; gap:4px; font-weight:700; border: 1px solid rgba(176,96,0,0.15);">
+                      <i class="ri-error-warning-line"></i> Easy-Heavy (${c.easyCount} vs ${c.externalCount})
+                    </span>
+                  ` : `
+                    <span class="tag tag-success" style="display:inline-flex; align-items:center; gap:4px; font-weight:600; color: #15803d; background-color: #f0fdf4; border: 1px solid rgba(22,163,74,0.15);">
+                      <i class="ri-checkbox-circle-line"></i> Balanced Ratio
+                    </span>
+                  `}
+                </td>
+              </tr>
+            `).join('') : `
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 24px;">No records found.</td>
               </tr>
             `}
           </tbody>
@@ -1566,6 +1934,12 @@ function renderCandidatesSheetView() {
               <span class="candidate-detail-label">Assigned Executive:</span>
               <span class="candidate-detail-value">${ownerMember ? ownerMember.name : 'Unassigned'}</span>
             </div>
+            <div>
+              <span class="candidate-detail-label">Main Resume:</span>
+              <span class="candidate-detail-value" style="display: inline-flex; align-items: center; gap: 6px;">
+                ${renderMainResumeUI(currentCandidate)}
+              </span>
+            </div>
           </div>
           <div style="margin-top: 12px; display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap;">
             <span style="font-size:11px; color: var(--text-secondary);">
@@ -1592,6 +1966,7 @@ function renderCandidatesSheetView() {
                   <th style="width: 170px;">Apply Type</th>
                   <th>Link</th>
                   <th>Interview Date/Time</th>
+                  <th style="width: 150px; text-align: center;">Tailored Resume</th>
                   <th style="width: 80px;">Action</th>
                 </tr>
               </thead>
@@ -1609,6 +1984,9 @@ function renderCandidatesSheetView() {
                       ${app.link ? `<a href="https://${app.link}" target="_blank" style="display:flex; align-items:center; gap:4px;"><i class="ri-external-link-line"></i> ${app.link}</a>` : ''}
                     </td>
                     <td>${app.interviewDate}</td>
+                    <td style="text-align: center; vertical-align: middle;">
+                      ${renderTailoredResumeUI(currentCandidate.id, app)}
+                    </td>
                     <td>
                       ${app.link ? `<button class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size:11px;" onclick="copyToClipboard('https://${app.link}')">Copy</button>` : ''}
                     </td>
@@ -1616,7 +1994,7 @@ function renderCandidatesSheetView() {
                 `).join('')}
                 ${appsToRender.length === 0 ? `
                   <tr>
-                    <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 24px;">No applications added yet.</td>
+                    <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 24px;">No applications added yet.</td>
                   </tr>
                 ` : ''}
               </tbody>
@@ -1692,6 +2070,12 @@ function renderCandidatesSheetView() {
             <span class="candidate-detail-label">Member:</span>
             <span class="candidate-detail-value">${ownerMember ? ownerMember.name : 'Unassigned'}</span>
           </div>
+          <div>
+            <span class="candidate-detail-label">Main Resume:</span>
+            <span class="candidate-detail-value" style="display: inline-flex; align-items: center; gap: 6px;">
+              ${renderMainResumeUI(currentCandidate)}
+            </span>
+          </div>
         </div>
         <span style="font-size:11px; color: var(--text-secondary); margin-top:4px;">
           ${canEdit ? 'Full Edit Mode. Click cells to edit. Press Ctrl+V on a cell to paste columns/rows from Excel directly! Type in the blank bottom row to add a new row.' : 'View-only Mode. Copy links or view statuses.'}
@@ -1711,6 +2095,7 @@ function renderCandidatesSheetView() {
                 <th style="width: 170px;">Apply Type</th>
                 <th>Link</th>
                 <th>Interview Date/Time</th>
+                <th style="width: 160px; text-align: center;">Tailored Resume</th>
                 ${canEdit ? '<th style="width: 70px; text-align: center;">Action</th>' : '<th style="width: 80px;">Action</th>'}
               </tr>
             </thead>
@@ -1758,6 +2143,10 @@ function renderCandidatesSheetView() {
                     ` : app.interviewDate}
                   </td>
                   
+                  <td style="text-align: center; vertical-align: middle;">
+                    ${renderTailoredResumeUI(currentCandidate.id, app)}
+                  </td>
+                  
                   ${canEdit ? `
                     <td style="text-align: center;">
                       ${!app.isPlaceholder ? `
@@ -1777,7 +2166,7 @@ function renderCandidatesSheetView() {
               `).join('')}
               ${appsToRender.length === 0 ? `
                 <tr>
-                  <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 24px;">No applications added yet.</td>
+                  <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 24px;">No applications added yet.</td>
                 </tr>
               ` : ''}
             </tbody>
@@ -1932,6 +2321,31 @@ function renderSettingsView() {
           <label class="login-label">Account Role</label>
           <span class="tag tag-info" style="font-size:12px; margin-top:4px;">${state.currentUser.role.toUpperCase()}</span>
         </div>
+
+        <!-- Cloud Sync Configurations -->
+        <div class="cloud-settings-card">
+          <h4 style="font-weight:700; font-size:14px; margin-bottom:12px;"><i class="ri-cloud-line" style="color: var(--primary);"></i> Cloud Sync Configuration</h4>
+          <p style="font-size:12px; color: var(--text-secondary); margin-bottom:16px;">Configure your JSON Bin URL and API Key for syncing candidates tracker state automatically to the cloud.</p>
+          
+          <form onsubmit="handleSaveCloudSettings(event)" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label class="login-label">JSONBin Bin URL</label>
+              <input type="text" id="settings-cloud-url" class="login-input" value="${CLOUD_SYNC_CONFIG.binUrl}" placeholder="e.g. https://api.jsonbin.io/v3/b/123456...">
+            </div>
+            
+            <div class="login-form-group" style="margin-bottom: 0;">
+              <label class="login-label">JSONBin Master Key (API Key)</label>
+              <input type="password" id="settings-cloud-key" class="login-input" value="${CLOUD_SYNC_CONFIG.apiKey}" placeholder="Enter API secret/key...">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 6px;">
+              <button type="submit" class="btn btn-primary btn-sm" style="flex: 1;"><i class="ri-save-line"></i> Save Cloud Config</button>
+              ${CLOUD_SYNC_CONFIG.binUrl ? `
+                <button type="button" class="btn btn-outline btn-sm" onclick="triggerManualSync()" style="flex: 1;"><i class="ri-refresh-line"></i> Sync Now</button>
+              ` : ''}
+            </div>
+          </form>
+        </div>
         
         <div style="border-top:1px solid var(--border-color); padding-top:20px; margin-top:10px;">
           <h4 style="font-weight:700; font-size:14px; margin-bottom:12px;">Database Operations</h4>
@@ -1942,6 +2356,36 @@ function renderSettingsView() {
     </div>
   `;
 }
+
+function handleSaveCloudSettings(event) {
+  event.preventDefault();
+  const url = document.getElementById("settings-cloud-url").value.trim();
+  const key = document.getElementById("settings-cloud-key").value.trim();
+  
+  if (url) {
+    localStorage.setItem("recruit_crm_cloud_bin_url", url);
+  } else {
+    localStorage.removeItem("recruit_crm_cloud_bin_url");
+  }
+  
+  if (key) {
+    localStorage.setItem("recruit_crm_cloud_api_key", key);
+  } else {
+    localStorage.removeItem("recruit_crm_cloud_api_key");
+  }
+  
+  showToast("Cloud sync configurations updated!");
+  renderApp();
+}
+
+async function triggerManualSync() {
+  const db = getDb();
+  showToast("Forcing cloud synchronization...");
+  await pushToCloud(db);
+  await pullFromCloud();
+  showToast("Synchronization complete!");
+}
+
 
 function toggleTlPasswordDisplay() {
   const display = document.getElementById("tl-pass-display");
