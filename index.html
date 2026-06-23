@@ -10,6 +10,8 @@
   
   <!-- Link to the premium styling -->
   <link rel="stylesheet" href="style.css">
+  <!-- Google Identity Services SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -27,6 +29,10 @@
         <div class="login-form-group">
           <label class="login-label">Team Leader Name</label>
           <input type="text" id="add-tl-name" class="login-input" required placeholder="e.g. Dhruv Mehta">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Team Leader Code</label>
+          <input type="text" id="add-tl-code" class="login-input" required placeholder="e.g. 101">
         </div>
         <div class="login-form-group">
           <label class="login-label">Email Address</label>
@@ -61,19 +67,16 @@
           <input type="text" id="add-member-name" class="login-input" required placeholder="e.g. Karan Patel">
         </div>
         <div class="login-form-group">
+          <label class="login-label">Member Code</label>
+          <input type="text" id="add-member-code" class="login-input" required placeholder="e.g. 101">
+        </div>
+        <div class="login-form-group">
           <label class="login-label">Email Address</label>
           <input type="email" id="add-member-email" class="login-input" required placeholder="e.g. karan@company.com">
         </div>
         <div class="login-form-group">
           <label class="login-label">Initial Password</label>
           <input type="password" id="add-member-password" class="login-input" required placeholder="Enter password">
-        </div>
-        <div class="login-form-group">
-          <label class="login-label">Candidate Access Permission</label>
-          <select id="add-member-access" class="login-input">
-            <option value="View only">View only</option>
-            <option value="Edit application rows">Edit application rows</option>
-          </select>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-member')">Cancel</button>
@@ -113,6 +116,76 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-candidate')">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Candidate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- --- MODAL: Edit Team Leader --- -->
+  <div id="modal-edit-tl" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Team Leader Details</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-edit-tl')"><i class="ri-close-line"></i></button>
+      </div>
+      <form id="form-edit-tl" onsubmit="handleSaveTLDetails(event)">
+        <input type="hidden" id="edit-tl-id">
+        <div class="login-form-group">
+          <label class="login-label">Team Leader Name</label>
+          <input type="text" id="edit-tl-name" class="login-input" required placeholder="e.g. Dhruv Mehta">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Team Leader Code</label>
+          <input type="text" id="edit-tl-code" class="login-input" required placeholder="e.g. 101">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Email Address</label>
+          <input type="email" id="edit-tl-email" class="login-input" required placeholder="e.g. dhruv@company.com">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">User ID (for Login)</label>
+          <input type="text" id="edit-tl-userid" class="login-input" required placeholder="e.g. TL001">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Login Password</label>
+          <input type="password" id="edit-tl-password" class="login-input" required placeholder="Enter password">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-edit-tl')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- --- MODAL: Edit Team Member --- -->
+  <div id="modal-edit-member" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Team Member Details</h3>
+        <button class="modal-close-btn" onclick="closeModal('modal-edit-member')"><i class="ri-close-line"></i></button>
+      </div>
+      <form id="form-edit-member" onsubmit="handleSaveMemberDetails(event)">
+        <input type="hidden" id="edit-member-id">
+        <div class="login-form-group">
+          <label class="login-label">Member Name</label>
+          <input type="text" id="edit-member-name" class="login-input" required placeholder="e.g. Karan Patel">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Member Code</label>
+          <input type="text" id="edit-member-code" class="login-input" required placeholder="e.g. 101">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Email Address</label>
+          <input type="email" id="edit-member-email" class="login-input" required placeholder="e.g. karan@company.com">
+        </div>
+        <div class="login-form-group">
+          <label class="login-label">Login Password</label>
+          <input type="password" id="edit-member-password" class="login-input" required placeholder="Enter password">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modal-edit-member')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
       </form>
     </div>
