@@ -134,6 +134,61 @@ function getInitial(value) {
   return displayName ? displayName.charAt(0) : "";
 }
 
+// --- Hash Routing Helpers ---
+function getHashRoute() {
+  const hash = window.location.hash.substring(1);
+  if (!hash) return { view: "", params: {} };
+  
+  const parts = hash.split("?");
+  const view = parts[0];
+  const queryStr = parts[1] || "";
+  const params = {};
+  if (queryStr) {
+    queryStr.split("&").forEach(pair => {
+      const [key, val] = pair.split("=");
+      if (key && val) {
+        params[key] = decodeURIComponent(val);
+      }
+    });
+  }
+  return { view, params };
+}
+
+function updateHashFromState() {
+  if (!state.currentUser) {
+    window.location.hash = "login";
+    return;
+  }
+  let hash = state.currentView;
+  if (state.currentView === "candidates-sheet" && state.selectedCandidateId) {
+    hash += `?candId=${state.selectedCandidateId}`;
+  }
+  window.location.hash = hash;
+}
+
+function handleHashChange() {
+  if (!state.currentUser) return;
+
+  const { view, params } = getHashRoute();
+  const validViews = ["dashboard", "team-leaders", "team-members", "candidates-sheet", "interviews-breakdown", "interview-calendar", "settings"];
+  
+  if (validViews.includes(view)) {
+    let changed = false;
+    if (state.currentView !== view) {
+      state.currentView = view;
+      changed = true;
+    }
+    if (view === "candidates-sheet" && params.candId && state.selectedCandidateId !== params.candId) {
+      state.selectedCandidateId = params.candId;
+      changed = true;
+    }
+    
+    if (changed) {
+      renderApp();
+    }
+  }
+}
+
 function getNewYorkDateTime() {
   const now = new Date();
   const date = new Intl.DateTimeFormat("en-CA", {
@@ -518,17 +573,18 @@ function handleLogout() {
   state.isTlAuthorized = false;
   state.authorizedTlId = null;
   state.filterDate = "";
-  localStorage.removeItem("recruit_crm_session");
+  sessionStorage.removeItem("recruit_crm_session");
+  window.location.hash = "login";
   renderApp();
   showToast("Logged out successfully");
 }
 
 function saveSession() {
-  localStorage.setItem("recruit_crm_session", JSON.stringify(state.currentUser));
+  sessionStorage.setItem("recruit_crm_session", JSON.stringify(state.currentUser));
 }
 
 function loadSession() {
-  const session = localStorage.getItem("recruit_crm_session");
+  const session = sessionStorage.getItem("recruit_crm_session");
   if (session) {
     state.currentUser = JSON.parse(session);
   }
@@ -1925,6 +1981,7 @@ function switchView(view) {
   if (view !== "interviews-breakdown") {
     state.selectedInterviewTlId = null;
   }
+  updateHashFromState();
   renderApp();
 }
 
@@ -2300,9 +2357,14 @@ function renderCandidatesBreakdownView() {
   
   // Calculate stats for each candidate
   let breakdownData = db.candidates.map(candidate => {
-    const totalApps = candidate.applications.length;
-    const easyCount = candidate.applications.filter(a => a.type === "Easy Apply").length;
-    const externalCount = candidate.applications.filter(a => a.type === "External Application").length;
+    // Filter candidate applications if date is selected
+    const filteredApps = state.filterDate 
+      ? candidate.applications.filter(a => a.date === state.filterDate)
+      : candidate.applications;
+
+    const totalApps = filteredApps.length;
+    const easyCount = filteredApps.filter(a => a.type === "Easy Apply").length;
+    const externalCount = filteredApps.filter(a => a.type === "External Application").length;
     
     // Find Owner TL & Member details
     const tl = db.teamLeaders.find(t => t.id === candidate.ownerTlId);
@@ -2361,10 +2423,17 @@ function renderCandidatesBreakdownView() {
     ` : ''}
 
     <div class="card">
-      <div class="card-header">
+      <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
         <div>
           <h3 class="card-title">Candidate Applications Breakdown</h3>
           <span class="card-subtitle">Detailed audit showing application counts by submission channel and ratio balance warning flags</span>
+        </div>
+        
+        <!-- Date filter picker for breakdown -->
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="font-size:12px; font-weight:600; color: var(--text-secondary);">Select Date:</label>
+          <input type="date" class="login-input" style="width:160px; padding: 4px 8px; height: 32px; font-size:12px;" onchange="handleDateFilterChange(event)" value="${state.filterDate}">
+          ${state.filterDate ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; height:32px; font-size:11px;" onclick="handleDateFilterChange({target:{value:''}})">Clear</button>` : ''}
         </div>
       </div>
       
@@ -2373,7 +2442,7 @@ function renderCandidatesBreakdownView() {
           <thead>
             <tr>
               <th>Candidate Name</th>
-              <th>Email</th>
+              <th>Date</th>
               <th>Assigned Team Lead</th>
               <th>Assigned Executive</th>
               <th style="text-align: center;">Total Applications</th>
@@ -2388,7 +2457,7 @@ function renderCandidatesBreakdownView() {
                 <td style="font-weight:600; text-transform: capitalize;">
                   ${isCandidateOnline(c.rawCandidate) ? '🟢 ' : ''}${c.name}
                 </td>
-                <td>${c.email}</td>
+                <td>${state.filterDate ? state.filterDate : 'All Dates'}</td>
                 <td style="text-transform: capitalize;">${c.tlName}</td>
                 <td style="text-transform: capitalize;">${c.memberName}</td>
                 <td style="font-weight: 700; text-align: center; color: var(--primary);">${c.totalApps}</td>
@@ -3188,6 +3257,7 @@ function renderCandidatesSheetView() {
 
 function changeActiveCandidate(id) {
   state.selectedCandidateId = id;
+  updateHashFromState();
   renderView();
 }
 
@@ -3313,11 +3383,11 @@ function renderSettingsView() {
       <div style="display:flex; flex-direction:column; gap:16px;">
         <div class="login-form-group">
           <label class="login-label">Name</label>
-          <input type="text" class="login-input" value="${getDisplayName(state.currentUser.name)}" readonly style="background-color:#f1f5f9;">
+          <input type="text" class="login-input" value="${getDisplayName(state.currentUser.name)}" readonly>
         </div>
         <div class="login-form-group">
           <label class="login-label">Email Address</label>
-          <input type="text" class="login-input" value="${state.currentUser.email}" readonly style="background-color:#f1f5f9;">
+          <input type="text" class="login-input" value="${state.currentUser.email}" readonly>
         </div>
         <div class="login-form-group">
           <label class="login-label">Account Role</label>
@@ -3588,8 +3658,8 @@ function renderMemberSelectionView() {
   const candidates = db.candidates;
   
   container.innerHTML = `
-    <div class="login-center-layout" style="min-height: auto; padding: 40px 0; background: transparent;">
-      <div class="login-card" style="box-shadow: var(--shadow-md); border: 1px solid var(--border-color); max-width: 500px;">
+    <div style="display: flex; justify-content: center; align-items: center; padding: 40px 0; min-height: calc(100vh - var(--header-height) - 100px);">
+      <div class="login-card" style="box-shadow: var(--shadow-md); border: 1px solid var(--border-color); max-width: 500px; width: 100%;">
         <div class="login-card-header">
           <h2 class="login-card-title" style="font-size: 22px;">Candidate Selection</h2>
           <div class="login-card-subtitle">Choose candidate and request TL Authorization to open candidate sheet</div>
@@ -3624,6 +3694,10 @@ function renderMemberSelectionView() {
           
           <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">
             <i class="ri-key-2-line"></i> Verify & Open Sheet
+          </button>
+
+          <button type="button" class="btn btn-outline" onclick="handleLogout()" style="width: 100%; margin-top: 12px; gap: 8px;">
+            <i class="ri-logout-box-r-line"></i> Log Out / Switch User
           </button>
         </form>
       </div>
@@ -3718,6 +3792,13 @@ function resetDatabase() {
 
 // --- Initialize App ---
 document.addEventListener("DOMContentLoaded", () => {
+  // If no active sessionStorage exists, default to admin login screen
+  const session = sessionStorage.getItem("recruit_crm_session");
+  if (!session) {
+    state.currentUser = null;
+    state.loginType = "admin";
+  }
+
   const app = document.getElementById("app");
   if (app) {
     app.innerHTML = renderSplashScreen();
@@ -3740,6 +3821,19 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Run app renderer after welcome animation
   setTimeout(() => {
+    // Sync state from initial hash if present
+    const { view, params } = getHashRoute();
+    const validViews = ["dashboard", "team-leaders", "team-members", "candidates-sheet", "interviews-breakdown", "interview-calendar", "settings"];
+    if (validViews.includes(view)) {
+      state.currentView = view;
+      if (view === "candidates-sheet" && params.candId) {
+        state.selectedCandidateId = params.candId;
+      }
+    }
+    
+    // Register hash listener
+    window.addEventListener("hashchange", handleHashChange);
+    
     renderApp();
     pullFromCloud();
     if (state.googleDriveConnected) {
