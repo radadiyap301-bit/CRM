@@ -3,7 +3,8 @@
 // --- Company Brand Configuration ---
 const COMPANY_CONFIG = {
   name: "Nexgen",
-  logoUrl: "logo.png",
+  subtitle: "Team hiring tracker",
+  logoUrl: "Logo.png",
   useLogoImage: true
 };
 
@@ -27,9 +28,9 @@ const SEED_DATA = {
     { id: "TL-05", userId: "TL005", name: "tushar", email: "tushar@nexgen.com", password: "password123", membersCount: 0, candidatesCount: 0, permission: "Add candidates only" }
   ],
   teamMembers: [
-    { id: "TM-01", name: "Karan Patel", email: "karan@nexgen.com", password: "password123", candidateCount: 2, tlId: "TL-01" },
-    { id: "TM-02", name: "Jignesh Solanki", email: "jignesh@nexgen.com", password: "password123", candidateCount: 2, tlId: "TL-02" },
-    { id: "TM-03", name: "Mansi Shah", email: "mansi@nexgen.com", password: "password123", candidateCount: 1, tlId: "TL-03" }
+    { id: "TM-01", name: "Karan Patel", email: "karan@nexgen.com", password: "password123", candidateCount: 2, access: "View only", tlId: "TL-01" },
+    { id: "TM-02", name: "Jignesh Solanki", email: "jignesh@nexgen.com", password: "password123", candidateCount: 2, access: "View only", tlId: "TL-02" },
+    { id: "TM-03", name: "Mansi Shah", email: "mansi@nexgen.com", password: "password123", candidateCount: 1, access: "View only", tlId: "TL-03" }
   ],
   candidates: [
     {
@@ -102,7 +103,6 @@ let state = {
   currentUser: null, // Stores logged in user info
   currentView: "dashboard", // Current active view
   selectedTlId: null, // For TL Details popover
-  selectedInterviewTlId: null, // For interview drilldown view
   selectedCandidateId: "C-01", // Active candidate in candidates sheet
   searchQuery: "",
   filterDate: "", // Date filter for dashboard and candidate sheets
@@ -117,198 +117,13 @@ let state = {
 };
 
 // --- Helper Functions ---
-function toTitleCaseName(value) {
-  return (value || "")
-    .trim()
-    .split(/\s+/)
-    .map(part => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : "")
-    .join(" ");
-}
-
-function getDisplayName(value) {
-  return toTitleCaseName(value);
-}
-
-function getInitial(value) {
-  const displayName = getDisplayName(value);
-  return displayName ? displayName.charAt(0) : "";
-}
-
-// --- Hash Routing Helpers ---
-function getHashRoute() {
-  const hash = window.location.hash.substring(1);
-  if (!hash) return { view: "", params: {} };
-  
-  const parts = hash.split("?");
-  const view = parts[0];
-  const queryStr = parts[1] || "";
-  const params = {};
-  if (queryStr) {
-    queryStr.split("&").forEach(pair => {
-      const [key, val] = pair.split("=");
-      if (key && val) {
-        params[key] = decodeURIComponent(val);
-      }
-    });
-  }
-  return { view, params };
-}
-
-function updateHashFromState() {
-  if (!state.currentUser) {
-    window.location.hash = "login";
-    return;
-  }
-  let hash = state.currentView;
-  if (state.currentView === "candidates-sheet" && state.selectedCandidateId) {
-    hash += `?candId=${state.selectedCandidateId}`;
-  }
-  window.location.hash = hash;
-}
-
-function handleHashChange() {
-  if (!state.currentUser) return;
-
-  const { view, params } = getHashRoute();
-  const validViews = ["dashboard", "team-leaders", "team-members", "candidates-sheet", "interviews-breakdown", "interview-calendar", "settings"];
-  
-  if (validViews.includes(view)) {
-    let changed = false;
-    if (state.currentView !== view) {
-      state.currentView = view;
-      changed = true;
-    }
-    if (view === "candidates-sheet" && params.candId && state.selectedCandidateId !== params.candId) {
-      state.selectedCandidateId = params.candId;
-      changed = true;
-    }
-    
-    if (changed) {
-      renderApp();
-    }
-  }
-}
-
-function getNewYorkDateTime() {
-  const now = new Date();
-  const date = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(now);
-  const time = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  }).format(now);
-  const labelDate = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    month: "short",
-    day: "2-digit",
-    year: "numeric"
-  }).format(now);
-  const day = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    day: "2-digit"
-  }).format(now);
-  const month = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    month: "short"
-  }).format(now).toUpperCase();
-  const timeParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  }).formatToParts(now);
-  const hour = timeParts.find(part => part.type === "hour")?.value || "";
-  const minute = timeParts.find(part => part.type === "minute")?.value || "";
-  const second = timeParts.find(part => part.type === "second")?.value || "";
-  const period = (timeParts.find(part => part.type === "dayPeriod")?.value || "").toLowerCase();
-
-  return { date, time, labelDate, day, month, hour, minute, second, period };
-}
-
-function renderNewYorkTimePanel() {
-  const nyDateTime = getNewYorkDateTime();
-
-  return `
-    <div class="header-time-panel" title="New York EST / ET time">
-      <div class="time-date-block">
-        <span class="time-date-day" data-ny-day>${nyDateTime.day}</span>
-        <span class="time-date-month" data-ny-month>${nyDateTime.month}</span>
-      </div>
-      <div class="time-panel-orb"></div>
-      <div class="time-clock-block">
-        <div class="time-clock-line">
-          <span class="time-clock-hour" data-ny-hour>${nyDateTime.hour}</span><span class="time-clock-separator">:</span><span class="time-clock-minute" data-ny-minute>${nyDateTime.minute}</span><span class="time-clock-separator">:</span><span class="time-clock-second" data-ny-second>${nyDateTime.second}</span><span class="time-clock-period" data-ny-period>${nyDateTime.period}</span>
-        </div>
-        <div class="time-clock-zone">EST</div>
-      </div>
-    </div>
-  `;
-}
-
-function normalizeDb(data) {
-  let changed = false;
-
-  if (data && Array.isArray(data.teamLeaders)) {
-    data.teamLeaders.forEach(tl => {
-      if (!tl.code) {
-        tl.code = tl.id || "";
-        changed = true;
-      }
-    });
-  }
-
-  if (data && Array.isArray(data.teamMembers)) {
-    data.teamMembers.forEach(member => {
-      if (!member.code) {
-        member.code = member.id || "";
-        changed = true;
-      }
-    });
-  }
-
-  if (data && Array.isArray(data.candidates)) {
-    data.candidates.forEach(candidate => {
-      if (Array.isArray(candidate.applications)) {
-        candidate.applications.forEach(app => {
-          if (!app.handledByMemberId) {
-            app.handledByMemberId = candidate.ownerMemberId || "";
-            changed = true;
-          }
-          if (!app.employeeCode) {
-            const member = data.teamMembers.find(m => m.id === app.handledByMemberId || m.id === candidate.ownerMemberId);
-            app.employeeCode = member ? (member.code || member.id) : "";
-            changed = true;
-          }
-        });
-      }
-    });
-  }
-
-  return { data, changed };
-}
-
 function getDb() {
   const db = localStorage.getItem("recruit_crm_db");
   if (!db) {
-    const normalized = normalizeDb(SEED_DATA).data;
-    localStorage.setItem("recruit_crm_db", JSON.stringify(normalized));
-    return normalized;
+    localStorage.setItem("recruit_crm_db", JSON.stringify(SEED_DATA));
+    return SEED_DATA;
   }
-  const parsed = JSON.parse(db);
-  const normalized = normalizeDb(parsed);
-  if (normalized.changed) {
-    localStorage.setItem("recruit_crm_db", JSON.stringify(normalized.data));
-  }
-  return normalized.data;
+  return JSON.parse(db);
 }
 
 function saveDb(data) {
@@ -519,7 +334,7 @@ function handleLogin(event) {
       state.currentView = "team-members"; // TL starts on Team Members view
       saveSession();
       renderApp();
-      showToast(`Welcome, ${getDisplayName(tl.name)}!`);
+      showToast(`Welcome, ${tl.name}!`);
     } else {
       showToast("Invalid Team Leader ID or Password!", "error");
     }
@@ -539,7 +354,7 @@ function handleLogin(event) {
       }
       saveSession();
       renderApp();
-      showToast(`Welcome, ${getDisplayName(member.name)}!`);
+      showToast(`Welcome, ${member.name}!`);
     } else {
       showToast("Invalid Member Email or Password!", "error");
     }
@@ -560,7 +375,7 @@ function handleLogin(event) {
       
       saveSession();
       renderApp();
-      showToast(`Welcome, ${getDisplayName(candidate.name)}!`);
+      showToast(`Welcome, ${candidate.name}!`);
     } else {
       showToast("Invalid Candidate Email or Password!", "error");
     }
@@ -573,18 +388,17 @@ function handleLogout() {
   state.isTlAuthorized = false;
   state.authorizedTlId = null;
   state.filterDate = "";
-  sessionStorage.removeItem("recruit_crm_session");
-  window.location.hash = "login";
+  localStorage.removeItem("recruit_crm_session");
   renderApp();
   showToast("Logged out successfully");
 }
 
 function saveSession() {
-  sessionStorage.setItem("recruit_crm_session", JSON.stringify(state.currentUser));
+  localStorage.setItem("recruit_crm_session", JSON.stringify(state.currentUser));
 }
 
 function loadSession() {
-  const session = sessionStorage.getItem("recruit_crm_session");
+  const session = localStorage.getItem("recruit_crm_session");
   if (session) {
     state.currentUser = JSON.parse(session);
   }
@@ -595,17 +409,11 @@ function handleCreateTL(event) {
   event.preventDefault();
   const db = getDb();
   
-  const name = toTitleCaseName(document.getElementById("add-tl-name").value);
-  const code = document.getElementById("add-tl-code").value.trim();
-  const email = document.getElementById("add-tl-email").value.trim();
-  const userId = document.getElementById("add-tl-userid").value.trim();
-  const password = document.getElementById("add-tl-password").value.trim();
+  const name = document.getElementById("add-tl-name").value;
+  const email = document.getElementById("add-tl-email").value;
+  const userId = document.getElementById("add-tl-userid").value;
+  const password = document.getElementById("add-tl-password").value;
   
-  if (db.teamLeaders.some(t => t.code === code)) {
-    showToast("Team Leader Code already exists!", "error");
-    return;
-  }
-
   if (db.teamLeaders.some(t => t.userId === userId)) {
     showToast("Team Leader User ID already exists!", "error");
     return;
@@ -614,7 +422,6 @@ function handleCreateTL(event) {
   const newTl = {
     id: `TL-0${db.teamLeaders.length + 1}`,
     userId,
-    code,
     name,
     email,
     password,
@@ -635,29 +442,24 @@ function handleCreateMember(event) {
   event.preventDefault();
   const db = getDb();
   
-  const name = toTitleCaseName(document.getElementById("add-member-name").value);
-  const code = document.getElementById("add-member-code").value.trim();
-  const email = document.getElementById("add-member-email").value.trim();
-  const password = document.getElementById("add-member-password").value.trim();
+  const name = document.getElementById("add-member-name").value;
+  const email = document.getElementById("add-member-email").value;
+  const password = document.getElementById("add-member-password").value;
+  const access = document.getElementById("add-member-access").value;
   
   // Decide which TL owns this member
   let tlId = "TL-01";
   if (state.currentUser.role === "tl") {
     tlId = state.currentUser.id;
   }
-
-  if (db.teamMembers.some(m => m.tlId === tlId && m.code === code)) {
-    showToast("Member Code already exists in this team!", "error");
-    return;
-  }
   
   const newMember = {
     id: `TM-0${db.teamMembers.length + 1}`,
-    code,
     name,
     email,
     password,
     candidateCount: 0,
+    access,
     tlId
   };
   
@@ -676,155 +478,11 @@ function handleCreateMember(event) {
   showToast("Team Member added successfully!");
 }
 
-function updateTlDetails(tlId) {
-  const db = getDb();
-  const tl = db.teamLeaders.find(t => t.id === tlId);
-  if (!tl) {
-    showToast("Team Leader not found!", "error");
-    return;
-  }
-
-  if (state.currentUser.role !== "admin" && !(state.currentUser.role === "tl" && state.currentUser.id === tlId)) {
-    showToast("You can only edit your own Team Leader details.", "error");
-    return;
-  }
-
-  // Populate modal inputs
-  document.getElementById("edit-tl-id").value = tl.id;
-  document.getElementById("edit-tl-name").value = getDisplayName(tl.name);
-  document.getElementById("edit-tl-code").value = tl.code || tl.id;
-  document.getElementById("edit-tl-email").value = tl.email;
-  document.getElementById("edit-tl-userid").value = tl.userId;
-  document.getElementById("edit-tl-password").value = tl.password;
-
-  openModal("modal-edit-tl");
-}
-
-function handleSaveTLDetails(event) {
-  event.preventDefault();
-  const tlId = document.getElementById("edit-tl-id").value;
-  const name = document.getElementById("edit-tl-name").value;
-  const code = document.getElementById("edit-tl-code").value;
-  const email = document.getElementById("edit-tl-email").value;
-  const userId = document.getElementById("edit-tl-userid").value;
-  const password = document.getElementById("edit-tl-password").value;
-
-  const cleanName = toTitleCaseName(name);
-  const cleanCode = code.trim();
-  const cleanEmail = email.trim();
-  const cleanUserId = userId.trim();
-  const cleanPassword = password.trim();
-
-  if (!cleanName || !cleanCode || !cleanEmail || !cleanUserId || !cleanPassword) {
-    showToast("All Team Leader fields are required.", "error");
-    return;
-  }
-
-  const db = getDb();
-  const tl = db.teamLeaders.find(t => t.id === tlId);
-  if (!tl) {
-    showToast("Team Leader not found!", "error");
-    return;
-  }
-
-  if (db.teamLeaders.some(t => t.id !== tlId && t.code === cleanCode)) {
-    showToast("Team Leader Code already exists!", "error");
-    return;
-  }
-
-  if (db.teamLeaders.some(t => t.id !== tlId && t.userId === cleanUserId)) {
-    showToast("Team Leader User ID already exists!", "error");
-    return;
-  }
-
-  tl.name = cleanName;
-  tl.code = cleanCode;
-  tl.email = cleanEmail;
-  tl.userId = cleanUserId;
-  tl.password = cleanPassword;
-
-  if (state.currentUser.role === "tl" && state.currentUser.id === tlId) {
-    state.currentUser.name = cleanName;
-    state.currentUser.email = cleanEmail;
-    saveSession();
-  }
-
-  saveDb(db);
-  closeModal("modal-edit-tl");
-  renderApp();
-  showToast("Team Leader details updated!");
-}
-
-function updateMemberDetails(memberId) {
-  const db = getDb();
-  const member = db.teamMembers.find(m => m.id === memberId);
-  if (!member) {
-    showToast("Team Member not found!", "error");
-    return;
-  }
-
-  if (state.currentUser.role !== "admin" && !(state.currentUser.role === "tl" && member.tlId === state.currentUser.id)) {
-    showToast("You can only edit members from your own team.", "error");
-    return;
-  }
-
-  // Populate modal inputs
-  document.getElementById("edit-member-id").value = member.id;
-  document.getElementById("edit-member-name").value = getDisplayName(member.name);
-  document.getElementById("edit-member-code").value = member.code || member.id;
-  document.getElementById("edit-member-email").value = member.email;
-  document.getElementById("edit-member-password").value = member.password;
-
-  openModal("modal-edit-member");
-}
-
-function handleSaveMemberDetails(event) {
-  event.preventDefault();
-  const memberId = document.getElementById("edit-member-id").value;
-  const name = document.getElementById("edit-member-name").value;
-  const code = document.getElementById("edit-member-code").value;
-  const email = document.getElementById("edit-member-email").value;
-  const password = document.getElementById("edit-member-password").value;
-
-  const cleanName = toTitleCaseName(name);
-  const cleanCode = code.trim();
-  const cleanEmail = email.trim();
-  const cleanPassword = password.trim();
-
-  if (!cleanName || !cleanCode || !cleanEmail || !cleanPassword) {
-    showToast("All Team Member fields are required.", "error");
-    return;
-  }
-
-  const db = getDb();
-  const member = db.teamMembers.find(m => m.id === memberId);
-  if (!member) {
-    showToast("Team Member not found!", "error");
-    return;
-  }
-
-  if (db.teamMembers.some(m => m.id !== memberId && m.tlId === member.tlId && m.code === cleanCode)) {
-    showToast("Member Code already exists in this team!", "error");
-    return;
-  }
-
-  member.name = cleanName;
-  member.code = cleanCode;
-  member.email = cleanEmail;
-  member.password = cleanPassword;
-
-  saveDb(db);
-  closeModal("modal-edit-member");
-  renderApp();
-  showToast("Team Member details updated!");
-}
-
-
 function handleCreateCandidate(event) {
   event.preventDefault();
   const db = getDb();
   
-  const name = toTitleCaseName(document.getElementById("add-cand-name").value);
+  const name = document.getElementById("add-cand-name").value;
   const email = document.getElementById("add-cand-email").value;
   const password = document.getElementById("add-cand-password").value;
   const memberId = document.getElementById("add-cand-member").value;
@@ -864,52 +522,6 @@ function handleCreateCandidate(event) {
 
 
 
-function resolveApplicationHandler(candidate, app) {
-  const db = getDb();
-  const memberId = app.handledByMemberId || candidate.ownerMemberId;
-  const member = db.teamMembers.find(m => m.id === memberId);
-  if (!member) {
-    return {
-      id: memberId || "",
-      code: memberId || "Unassigned",
-      name: "Unassigned",
-      label: "Unassigned"
-    };
-  }
-
-  return {
-    id: member.id,
-    code: member.code || member.id,
-    name: getDisplayName(member.name),
-    label: `${getDisplayName(member.name)} (${member.code || member.id})`
-  };
-}
-
-function stampApplicationHandler(candidate, app, force = false) {
-  if (!candidate || !app) return;
-  if (!force && app.handledByMemberId && app.employeeCode) return;
-
-  const db = getDb();
-  let memberId = candidate.ownerMemberId || "";
-
-  if (state.currentUser && state.currentUser.role === "member") {
-    memberId = state.currentUser.id;
-  }
-
-  const member = db.teamMembers.find(m => m.id === memberId);
-  app.handledByMemberId = memberId;
-  app.employeeCode = member ? (member.code || member.id) : "";
-}
-
-function getApplicationEmployeeCode(candidate, app) {
-  if (app.employeeCode) return app.employeeCode;
-  return resolveApplicationHandler(candidate, app).code || "";
-}
-
-function isApplicationRowComplete(app) {
-  return !!(app && app.company && app.company.trim() && app.role && app.role.trim() && app.link && app.link.trim());
-}
-
 function updateApplicationCell(candidateId, srNo, field, val) {
   const db = getDb();
   const candidate = db.candidates.find(c => c.id === candidateId);
@@ -924,20 +536,18 @@ function updateApplicationCell(candidateId, srNo, field, val) {
         srNo: parseInt(srNo),
         company: '',
         role: '',
-        date: getNewYorkDateTime().date,
+        date: new Date().toISOString().split('T')[0],
         type: 'Easy Apply',
         link: '',
         interviewDate: 'Pending',
         status: 'Pending'
       };
-      stampApplicationHandler(candidate, row, true);
       candidate.applications.push(row);
     } else {
-      wasComplete = isApplicationRowComplete(row);
+      wasComplete = row.company.trim() !== '' && row.role.trim() !== '';
     }
     
     row[field] = val;
-    stampApplicationHandler(candidate, row, state.currentUser && state.currentUser.role === "member");
     
     // Auto-update status if interviewDate changes
     if (field === "interviewDate") {
@@ -952,7 +562,7 @@ function updateApplicationCell(candidateId, srNo, field, val) {
     
     saveDb(db);
     
-    const isCompleteNow = isApplicationRowComplete(row);
+    const isCompleteNow = row.company.trim() !== '' && row.role.trim() !== '';
     
     // Re-render ONLY if:
     // 1. It is a new row and is complete now (e.g. pasted data)
@@ -1332,8 +942,7 @@ async function handleMainResumeUpload(event, candId) {
     return;
   }
   
-  const nyDateTime = getNewYorkDateTime();
-  const todayStr = nyDateTime.date;
+  const todayStr = new Date().toISOString().split('T')[0];
   const db = getDb();
   const candidate = db.candidates.find(c => c.id === candId);
   if (!candidate) return;
@@ -1428,7 +1037,7 @@ function deleteSelectedMainResume(candId) {
 function renderTailoredResumeUI(candId, app) {
   if (app.isPlaceholder) return '';
   
-  const isAuthorizedToChange = state.currentUser.role === "admin" || state.currentUser.role === "tl" || state.currentUser.role === "member";
+  const isAuthorizedToChange = state.currentUser.role === "admin" || state.currentUser.role === "tl";
   
   if (app.tailoredResume && app.tailoredResume.name) {
     const downloadBtn = `<button class="btn-resume-action" style="padding: 3px 6px; font-size: 11px;" onclick="downloadTailoredResume('${candId}', ${app.srNo})" title="Download Tailored Resume"><i class="ri-download-2-line"></i></button>`;
@@ -1569,47 +1178,7 @@ function handleDateFilterChange(event) {
   renderView();
 }
 
-function updateNewYorkTimePanel() {
-  const nyDateTime = getNewYorkDateTime();
-  document.querySelectorAll("[data-ny-day]").forEach(el => el.textContent = nyDateTime.day);
-  document.querySelectorAll("[data-ny-month]").forEach(el => el.textContent = nyDateTime.month);
-  document.querySelectorAll("[data-ny-hour]").forEach(el => el.textContent = nyDateTime.hour);
-  document.querySelectorAll("[data-ny-minute]").forEach(el => el.textContent = nyDateTime.minute);
-  document.querySelectorAll("[data-ny-second]").forEach(el => el.textContent = nyDateTime.second);
-  document.querySelectorAll("[data-ny-period]").forEach(el => el.textContent = nyDateTime.period);
-}
-
-function showCurrentTlDetails(event) {
-  if (event) event.stopPropagation();
-  if (!state.currentUser || state.currentUser.role !== "tl") return;
-  state.selectedTlId = state.currentUser.id;
-  renderApp();
-}
-
 // --- Templating & Rendering ---
-function renderSplashScreen() {
-  const logoHtml = `<div class="splash-logo-text"><span class="part-nex">Nex</span><span class="part-gen">gen</span></div>`;
-
-  return `
-    <div class="splash-screen">
-      <div class="splash-grid"></div>
-      <div class="splash-orb splash-orb-one"></div>
-      <div class="splash-orb splash-orb-two"></div>
-      <div class="splash-orb splash-orb-three"></div>
-      <div class="splash-brand">
-        <div class="splash-kicker">Recruitment CRM</div>
-        ${logoHtml}
-        <div class="splash-welcome">Welcome to ${COMPANY_CONFIG.name}</div>
-        <div class="splash-subline">Placement operations, interviews, and candidate flow in one place.</div>
-        <div class="splash-loader">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-      </div>
-    </div>
-  `;
-}
 
 function renderApp() {
   loadSession();
@@ -1630,10 +1199,13 @@ function renderApp() {
         <div class="main-content no-sidebar">
           <div class="header">
             <div class="header-title-area">
-                            
+              <h1 class="header-title">${COMPANY_CONFIG.name} - Candidate Access</h1>
+              <span class="header-subtitle">Select a candidate and authorize with your Team Leader to open the sheet</span>
             </div>
             <div class="header-actions">
-              ${renderNewYorkTimePanel()}
+              <div class="cloud-status-indicator" style="font-size: 11px; display: flex; align-items: center; gap: 6px; font-weight:600; color: var(--text-secondary); margin-right: 12px;">
+                <i class="ri-cloud-off-line"></i> <span>Local Storage Mode</span>
+              </div>
               <button class="btn-logout-header" onclick="handleLogout()">
                 <i class="ri-logout-box-r-line"></i> Log Out
               </button>
@@ -1647,7 +1219,6 @@ function renderApp() {
     `;
     renderMemberSelectionView();
     renderCloudStatusWidget();
-    updateNewYorkTimePanel();
     return;
   }
   
@@ -1659,192 +1230,196 @@ function renderApp() {
         <div class="container-fluid" id="view-container">
           <!-- Render View here -->
         </div>
-        ${state.selectedTlId ? renderTlDetailsPopover() : ''}
       </div>
     </div>
   `;
   
   renderView();
   renderCloudStatusWidget();
-  updateNewYorkTimePanel();
 }
 
 function renderLoginScreen() {
-  let cardHtml = "";
   if (state.loginType === "admin") {
-    cardHtml = `
-      <div class="login-card">
-        <div class="login-switch-tab">
-          <button class="login-tab-btn active" onclick="switchLoginType('admin')">Admin</button>
-          <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
-          <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
-          <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
+    // Admin login split layout
+    return `
+      <div class="login-page-container">
+        <div class="login-left-panel">
+          <div class="login-left-content">
+            ${COMPANY_CONFIG.useLogoImage 
+              ? `<img src="${COMPANY_CONFIG.logoUrl}" alt="${COMPANY_CONFIG.name}" style="max-height: 48px; width: auto; object-fit: contain; margin-bottom: 24px; align-self: flex-start;">`
+              : `<div class="login-brand">${COMPANY_CONFIG.name}</div>`
+            }
+            <div class="login-desc">Track candidates, team leaders, interviews and daily job applications in one clean system.</div>
+            
+            <div class="live-preview-card">
+              <div class="live-preview-title">Live Dashboard Preview</div>
+              
+              <div class="preview-subcard">
+                <div class="label">Today Applications</div>
+                <div class="value">128</div>
+                <div><span class="tag tag-success">+18 today</span></div>
+              </div>
+              
+              <div class="preview-subcard">
+                <div class="label">Interviews</div>
+                <div class="value">24</div>
+                <div><span class="tag tag-info">Today</span></div>
+              </div>
+            </div>
+          </div>
         </div>
         
-        <div class="login-card-header">
-          <h2 class="login-card-title">Admin Login</h2>
-          <div class="login-card-subtitle">Login to open full CRM dashboard</div>
+        <div class="login-right-panel">
+          <div class="login-card">
+            <div class="login-switch-tab">
+              <button class="login-tab-btn active" onclick="switchLoginType('admin')">Admin</button>
+              <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
+              <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
+              <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
+            </div>
+            
+            <div class="login-card-header">
+              <h2 class="login-card-title">Admin Login</h2>
+              <div class="login-card-subtitle">Login to open full CRM dashboard</div>
+            </div>
+            
+            <form onsubmit="handleLogin(event)">
+              <div class="login-form-group">
+                <label class="login-label">Email / Username</label>
+                <input type="email" id="login-admin-email" class="login-input" required value="admin@crm.com" placeholder="admin@company.com">
+              </div>
+              
+              <div class="login-form-group">
+                <label class="login-label">Password</label>
+                <input type="password" id="login-admin-password" class="login-input" required value="password" placeholder="••••••••">
+              </div>
+              
+              <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Log In</button>
+              
+              <div class="login-card-footer">
+                <a href="#" onclick="showToast('Password reset link sent to admin@crm.com')">Forgot password?</a>
+                <p style="margin-top: 24px; font-size: 11px; color: var(--text-secondary);">After login: Dashboard + all candidate data view</p>
+              </div>
+            </form>
+          </div>
         </div>
-        
-        <form onsubmit="handleLogin(event)">
-          <div class="login-form-group">
-            <label class="login-label">Email / Username</label>
-            <input type="email" id="login-admin-email" class="login-input" required value="admin@crm.com" placeholder="admin@nexgen.com">
-          </div>
-          
-          <div class="login-form-group">
-            <label class="login-label">Password</label>
-            <input type="password" id="login-admin-password" class="login-input" required value="password" placeholder="••••••••">
-          </div>
-          
-          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Log In</button>
-          
-          <div class="login-card-footer">
-            <a href="#" onclick="showToast('Password reset link sent to admin@crm.com')">Forgot password?</a>
-            <p style="margin-top: 24px; font-size: 11px; color: var(--text-secondary);">After login: Dashboard + all candidate data view</p>
-          </div>
-        </form>
       </div>
     `;
   } else if (state.loginType === "tl") {
-    cardHtml = `
-      <div class="login-card">
-        <div class="login-switch-tab">
-          <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
-          <button class="login-tab-btn active" onclick="switchLoginType('tl')">Team Lead</button>
-          <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
-          <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
+    // Team Lead Login layout
+    return `
+      <div class="login-center-layout">
+        <div class="login-card">
+          <div class="login-switch-tab">
+            <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
+            <button class="login-tab-btn active" onclick="switchLoginType('tl')">Team Lead</button>
+            <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
+            <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
+          </div>
+          
+          <div class="login-card-header">
+            <h2 class="login-card-title">Team Lead Login</h2>
+            <div class="login-card-subtitle">Only team leader can add candidate names and open member sheets.</div>
+          </div>
+          
+          <form onsubmit="handleLogin(event)">
+            <div class="login-form-group">
+              <label class="login-label">Team Leader ID</label>
+              <input type="text" id="login-tl-id" class="login-input" required value="TL001" placeholder="TL001">
+            </div>
+            
+            <div class="login-form-group">
+              <label class="login-label">Password</label>
+              <input type="password" id="login-tl-password" class="login-input" required value="password123" placeholder="••••••••">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Login as Team Leader</button>
+            
+            <div class="info-box" style="margin-top:24px;">
+              <div class="info-box-title" style="font-size:12px; margin-bottom:4px;">Permission rules</div>
+              <div class="info-box-content" style="font-size:11px;">Members cannot change TL candidate names.</div>
+            </div>
+          </form>
         </div>
-        
-        <div class="login-card-header">
-          <h2 class="login-card-title">Team Lead Login</h2>
-          <div class="login-card-subtitle">Only team leader can add candidate names and open member sheets.</div>
-        </div>
-        
-        <form onsubmit="handleLogin(event)">
-          <div class="login-form-group">
-            <label class="login-label">Team Leader ID</label>
-            <input type="text" id="login-tl-id" class="login-input" required value="TL001" placeholder="TL001">
-          </div>
-          
-          <div class="login-form-group">
-            <label class="login-label">Password</label>
-            <input type="password" id="login-tl-password" class="login-input" required value="password123" placeholder="••••••••">
-          </div>
-          
-          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Login as Team Leader</button>
-          
-          <div class="info-box" style="margin-top:24px;">
-            <div class="info-box-title" style="font-size:12px; margin-bottom:4px;">Permission rules</div>
-            <div class="info-box-content" style="font-size:11px;">Members cannot change TL candidate names.</div>
-          </div>
-        </form>
       </div>
     `;
   } else if (state.loginType === "member") {
-    cardHtml = `
-      <div class="login-card">
-        <div class="login-switch-tab">
-          <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
-          <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
-          <button class="login-tab-btn active" onclick="switchLoginType('member')">Team Member</button>
-          <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
+    // Team Member Login layout
+    return `
+      <div class="login-center-layout">
+        <div class="login-card">
+          <div class="login-switch-tab">
+            <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
+            <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
+            <button class="login-tab-btn active" onclick="switchLoginType('member')">Team Member</button>
+            <button class="login-tab-btn" onclick="switchLoginType('candidate')">Candidate</button>
+          </div>
+          
+          <div class="login-card-header">
+            <h2 class="login-card-title">Team Member Login</h2>
+            <div class="login-card-subtitle">Access your assigned candidate application sheets in view-only mode.</div>
+          </div>
+          
+          <form onsubmit="handleLogin(event)">
+            <div class="login-form-group">
+              <label class="login-label">Email Address</label>
+              <input type="email" id="login-member-email" class="login-input" required value="karan@company.com" placeholder="karan@company.com">
+            </div>
+            
+            <div class="login-form-group">
+              <label class="login-label">Password</label>
+              <input type="password" id="login-member-password" class="login-input" required value="password123" placeholder="••••••••">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Login as Team Member</button>
+            
+            <div class="info-box" style="margin-top:24px; background-color: var(--warning-bg); border-color:#ffe0b2;">
+              <div class="info-box-title" style="font-size:12px; margin-bottom:4px; color: var(--warning-text);">View-only access</div>
+              <div class="info-box-content" style="font-size:11px; color: var(--warning-text);">Members can view sheet and copy links, but cannot edit protected fields.</div>
+            </div>
+          </form>
         </div>
-        
-        <div class="login-card-header">
-          <h2 class="login-card-title">Team Member Login</h2>
-          <div class="login-card-subtitle">Access your assigned candidate application sheets in view-only mode.</div>
-        </div>
-        
-        <form onsubmit="handleLogin(event)">
-          <div class="login-form-group">
-            <label class="login-label">Email Address</label>
-            <input type="email" id="login-member-email" class="login-input" required value="karan@nexgen.com" placeholder="karan@nexgen.com">
-          </div>
-          
-          <div class="login-form-group">
-            <label class="login-label">Password</label>
-            <input type="password" id="login-member-password" class="login-input" required value="password123" placeholder="••••••••">
-          </div>
-          
-          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Login as Team Member</button>
-          
-          <div class="info-box" style="margin-top:24px; background-color: var(--warning-bg); border-color:#ffe0b2;">
-            <div class="info-box-title" style="font-size:12px; margin-bottom:4px; color: var(--warning-text);">View-only access</div>
-            <div class="info-box-content" style="font-size:11px; color: var(--warning-text);">Members can view sheet and copy links, but cannot edit protected fields.</div>
-          </div>
-        </form>
       </div>
     `;
   } else {
-    cardHtml = `
-      <div class="login-card">
-        <div class="login-switch-tab">
-          <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
-          <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
-          <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
-          <button class="login-tab-btn active" onclick="switchLoginType('candidate')">Candidate</button>
+    // Candidate Login layout
+    return `
+      <div class="login-center-layout">
+        <div class="login-card">
+          <div class="login-switch-tab">
+            <button class="login-tab-btn" onclick="switchLoginType('admin')">Admin</button>
+            <button class="login-tab-btn" onclick="switchLoginType('tl')">Team Lead</button>
+            <button class="login-tab-btn" onclick="switchLoginType('member')">Team Member</button>
+            <button class="login-tab-btn active" onclick="switchLoginType('candidate')">Candidate</button>
+          </div>
+          
+          <div class="login-card-header">
+            <h2 class="login-card-title">Candidate Login</h2>
+            <div class="login-card-subtitle">Log in with your personal email to view your recruitment sheet.</div>
+          </div>
+          
+          <form onsubmit="handleLogin(event)">
+            <div class="login-form-group">
+              <label class="login-label">Personal Email Address</label>
+              <input type="email" id="login-candidate-email" class="login-input" required value="amit@gmail.com" placeholder="amit@gmail.com">
+            </div>
+            
+            <div class="login-form-group">
+              <label class="login-label">Password</label>
+              <input type="password" id="login-candidate-password" class="login-input" required value="password123" placeholder="••••••••">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Login as Candidate</button>
+            
+            <div class="info-box" style="margin-top:24px; background-color: var(--primary-light); border-color:#b3d4ff; color: var(--primary);">
+              <div class="info-box-title" style="font-size:12px; margin-bottom:4px;">View-only Candidate Sheet</div>
+              <div class="info-box-content" style="font-size:11px; color: var(--text-secondary);">Candidates have read-only access to their personal application tracking sheet.</div>
+            </div>
+          </form>
         </div>
-        
-        <div class="login-card-header">
-          <h2 class="login-card-title">Candidate Login</h2>
-          <div class="login-card-subtitle">Log in with your personal email to view your recruitment sheet.</div>
-        </div>
-        
-        <form onsubmit="handleLogin(event)">
-          <div class="login-form-group">
-            <label class="login-label">Personal Email Address</label>
-            <input type="email" id="login-candidate-email" class="login-input" required value="amit@gmail.com" placeholder="amit@gmail.com">
-          </div>
-          
-          <div class="login-form-group">
-            <label class="login-label">Password</label>
-            <input type="password" id="login-candidate-password" class="login-input" required value="password123" placeholder="••••••••">
-          </div>
-          
-          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:12px;">Login as Candidate</button>
-          
-          <div class="info-box" style="margin-top:24px; background-color: var(--primary-light); border-color:#b3d4ff; color: var(--primary);">
-            <div class="info-box-title" style="font-size:12px; margin-bottom:4px;">View-only Candidate Sheet</div>
-            <div class="info-box-content" style="font-size:11px; color: var(--text-secondary);">Candidates have read-only access to their personal application tracking sheet.</div>
-          </div>
-        </form>
       </div>
     `;
   }
-
-  return `
-    <div class="login-page-container">
-      <div class="login-left-panel">
-        <div class="login-left-content">
-          ${COMPANY_CONFIG.useLogoImage 
-            ? `<img src="${COMPANY_CONFIG.logoUrl}" alt="${COMPANY_CONFIG.name}" style="max-height: 48px; width: auto; object-fit: contain; margin-bottom: 24px; align-self: flex-start;">`
-            : `<div class="login-brand">${COMPANY_CONFIG.name}</div>`
-          }
-          <div class="login-desc">Track candidates, team leaders, interviews and daily job applications in one clean system.</div>
-          
-          <div class="live-preview-card">
-            <div class="live-preview-title">Live Dashboard Preview</div>
-            
-            <div class="preview-subcard">
-              <div class="label">Today Applications</div>
-              <div class="value">128</div>
-              <div><span class="tag tag-success">+18 today</span></div>
-            </div>
-            
-            <div class="preview-subcard">
-              <div class="label">Interviews</div>
-              <div class="value">24</div>
-              <div><span class="tag tag-info">Today</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="login-right-panel">
-        ${cardHtml}
-      </div>
-    </div>
-  `;
 }
 
 function switchLoginType(type) {
@@ -1864,11 +1439,12 @@ function renderSidebar() {
         <div class="sidebar-header">
           <div class="sidebar-brand" style="display: flex; align-items: center; gap: 8px;">
             ${COMPANY_CONFIG.useLogoImage 
-              ? `<img src="${COMPANY_CONFIG.logoUrl}" alt="${COMPANY_CONFIG.name}" style="max-height: 50px; width: auto; object-fit: contain;">`
+              ? `<img src="${COMPANY_CONFIG.logoUrl}" alt="${COMPANY_CONFIG.name}" style="max-height: 38px; width: auto; object-fit: contain;">`
               : `<i class="ri-radar-line" style="color: var(--primary);"></i> ${COMPANY_CONFIG.name}`
             }
           </div>
-                  </div>
+          <div class="sidebar-subtitle">${COMPANY_CONFIG.subtitle}</div>
+        </div>
         
         <ul class="sidebar-menu">
           ${isAdmin ? `
@@ -1905,9 +1481,9 @@ function renderSidebar() {
           <i class="ri-cloud-off-line"></i> <span>Local Storage Mode</span>
         </div>
         <div class="user-profile-card">
-          <div class="user-avatar">${getInitial(state.currentUser.name)}</div>
+          <div class="user-avatar">${state.currentUser.name.charAt(0)}</div>
           <div class="user-info">
-            <span class="user-name">${getDisplayName(state.currentUser.name)}</span>
+            <span class="user-name">${state.currentUser.name}</span>
             <span class="user-role">${state.currentUser.role === 'admin' ? 'Admin User' : state.currentUser.role === 'tl' ? 'Team Leader' : 'Team Member'}</span>
           </div>
         </div>
@@ -1919,19 +1495,23 @@ function renderSidebar() {
 
 function renderHeader() {
   let title = "Dashboard Overview";
+  let subtitle = "All candidate entries, team tracking, interview dates and daily applications";
   
   if (state.currentView === "team-leaders") {
     title = "Team Leader Details";
+    subtitle = "Add, view and manage team leaders with login details";
   } else if (state.currentView === "team-members") {
     title = "Team Members";
+    subtitle = "Team leader can add members and assign candidate access";
   } else if (state.currentView === "candidates-sheet") {
     title = "Candidate Application Sheet";
-  } else if (state.currentView === "interviews-breakdown") {
-    title = "Interview Performance";
+    subtitle = "Excel-style job application tracking with view-only sharing and link copy";
   } else if (state.currentView === "interview-calendar") {
     title = "Interview Calendar";
+    subtitle = "Track candidate interview schedules and timings";
   } else if (state.currentView === "settings") {
     title = "Settings";
+    subtitle = "Customize configuration and reset profile details";
   }
   
   const showAddBtn = state.currentUser.role === 'admin' || (state.currentUser.role === 'tl' && state.currentView === 'team-members');
@@ -1939,19 +1519,21 @@ function renderHeader() {
   const isMember = state.currentUser.role === 'member';
   const isCandidate = state.currentUser.role === 'candidate';
   const noSidebar = isMember || isCandidate;
-  const searchPlaceholder = state.currentView === "candidates-sheet" ? "Search company, role, link..." : "Search candidate, company...";
   
   return `
     <div class="header">
       <div class="header-title-area">
         <h1 class="header-title">${title}</h1>
+        <span class="header-subtitle">${subtitle}</span>
       </div>
       
       <div class="header-actions">
-        ${renderNewYorkTimePanel()}
+        <div class="cloud-status-indicator" style="font-size: 11px; display: flex; align-items: center; gap: 6px; font-weight:600; color: var(--text-secondary); margin-right: 12px;">
+          <i class="ri-cloud-off-line"></i> <span>Local Storage Mode</span>
+        </div>
         <div class="search-bar">
           <i class="ri-search-line"></i>
-          <input type="text" placeholder="${searchPlaceholder}" oninput="handleSearch(event)" value="${state.searchQuery}">
+          <input type="text" placeholder="Search candidate, company..." oninput="handleSearch(event)" value="${state.searchQuery}">
         </div>
         
         ${showAddBtn ? `
@@ -1964,10 +1546,8 @@ function renderHeader() {
           </button>
         ` : ''}
         
-        <div class="header-profile-menu-wrap">
-          <div class="user-avatar header-user-avatar ${state.currentUser.role === 'tl' ? 'clickable' : ''}" onclick="showCurrentTlDetails(event)" title="${state.currentUser.role === 'tl' ? 'View TL details' : getDisplayName(state.currentUser.name)}" style="background-color: var(--primary-light); color: var(--primary); width: 34px; height: 34px; font-size:14px;">
-            ${getInitial(state.currentUser.name)}
-          </div>
+        <div class="user-avatar" style="background-color: var(--primary-light); color: var(--primary); width: 34px; height: 34px; font-size:14px;">
+          ${state.currentUser.name.charAt(0)}
         </div>
       </div>
     </div>
@@ -1978,10 +1558,6 @@ function switchView(view) {
   state.currentView = view;
   state.searchQuery = ""; // reset search
   state.selectedTlId = null; // hide TL details popup
-  if (view !== "interviews-breakdown") {
-    state.selectedInterviewTlId = null;
-  }
-  updateHashFromState();
   renderApp();
 }
 
@@ -2022,7 +1598,7 @@ function populateCandidateModalDropdown() {
   }
   
   dropdown.innerHTML = members.map(m => `
-    <option value="${m.id}">${getDisplayName(m.name)} (${m.code || m.id}) - ${m.email}</option>
+    <option value="${m.id}">${m.name} (${m.email})</option>
   `).join("");
 }
 
@@ -2058,9 +1634,6 @@ function renderView() {
     case "candidates-breakdown":
       container.innerHTML = renderCandidatesBreakdownView();
       break;
-    case "interviews-breakdown":
-      container.innerHTML = renderInterviewsBreakdownView();
-      break;
     default:
       container.innerHTML = `<h3>View under construction</h3>`;
   }
@@ -2074,9 +1647,8 @@ function renderDashboardView() {
   const totalCandidates = db.candidates.length;
   const activeTeams = db.teamLeaders.length;
   
-  // Calculate today's applications count using New York date.
-  const nyDateTime = getNewYorkDateTime();
-  const todayStr = nyDateTime.date;
+  // Calculate today's applications count (based on actual applications date matching today)
+  const todayStr = new Date().toISOString().split('T')[0];
   const todayAppsCount = db.candidates.reduce((acc, c) => {
     return acc + c.applications.filter(a => a.date === todayStr).length;
   }, 0);
@@ -2096,7 +1668,7 @@ function renderDashboardView() {
   db.candidates.forEach(c => {
     c.applications.forEach(app => {
       allApplications.push({
-        candidateName: getDisplayName(c.name),
+        candidateName: c.name,
         company: app.company,
         role: app.role,
         date: app.date,
@@ -2104,8 +1676,7 @@ function renderDashboardView() {
         link: app.link,
         interviewDate: app.interviewDate,
         status: app.status,
-        ownerTlId: c.ownerTlId,
-        employeeCode: getApplicationEmployeeCode(c, app)
+        ownerTlId: c.ownerTlId
       });
     });
   });
@@ -2116,8 +1687,7 @@ function renderDashboardView() {
     allApplications = allApplications.filter(app => 
       app.candidateName.toLowerCase().includes(q) || 
       app.company.toLowerCase().includes(q) || 
-      app.role.toLowerCase().includes(q) ||
-      app.employeeCode.toLowerCase().includes(q)
+      app.role.toLowerCase().includes(q)
     );
   }
 
@@ -2171,16 +1741,12 @@ function renderDashboardView() {
     
     return `
       <div class="team-track-item">
-        <span class="team-name" style="text-transform: capitalize;">${getDisplayName(tl.name)} Team</span>
+        <span class="team-name" style="text-transform: capitalize;">${tl.name} Team</span>
         <span class="team-apps">${appCount} applications</span>
         <span class="tag tag-info">${interviewCount} active</span>
       </div>
     `;
   }).join('');
-
-  const totalInterviewCount = db.candidates.reduce((total, candidate) => {
-    return total + candidate.applications.filter(app => app.interviewDate && app.interviewDate !== "Pending").length;
-  }, 0);
   
   return `
     <!-- Top Row Cards -->
@@ -2238,15 +1804,6 @@ function renderDashboardView() {
           <span style="color: var(--text-secondary);">slots pending</span>
         </div>
       </div>
-
-      <div class="card stats-card clickable" onclick="switchView('interviews-breakdown')" title="Click to view team-wise interview performance">
-        <span class="stats-label">Interview</span>
-        <span class="stats-value">${totalInterviewCount}</span>
-        <div class="stats-footer">
-          <span class="tag tag-warning">Total</span>
-          <span style="color: var(--text-secondary);">team performance</span>
-        </div>
-      </div>
       
       <div class="card stats-card">
         <span class="stats-label">Active Teams</span>
@@ -2256,7 +1813,6 @@ function renderDashboardView() {
           <span style="color: var(--text-secondary);">teams tracking</span>
         </div>
       </div>
-
     </div>
     
     <!-- Middle Grid (Daily Applications Chart & Team tracking) -->
@@ -2290,7 +1846,7 @@ function renderDashboardView() {
         </div>
       </div>
     </div>
-
+    
     <!-- Bottom Grid (Interview Details Table) -->
     <div class="card">
       <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
@@ -2315,7 +1871,7 @@ function renderDashboardView() {
               <th>Company</th>
               <th>Role</th>
               <th>Submission Date</th>
-              <th style="width: 190px;">Apply Type</th>
+              <th style="width: 170px;">Apply Type</th>
               <th>Interview Date & Time</th>
               <th>Status</th>
             </tr>
@@ -2326,7 +1882,7 @@ function renderDashboardView() {
               const onlineDot = (candObj && isCandidateOnline(candObj)) ? "🟢 " : "";
               return `
                 <tr>
-                  <td style="font-weight: 600; text-transform: capitalize;">${onlineDot}${getDisplayName(i.candidateName)}</td>
+                  <td style="font-weight: 600; text-transform: capitalize;">${onlineDot}${i.candidateName}</td>
                   <td>${i.company}</td>
                   <td>${i.role}</td>
                   <td>${i.date || 'N/A'}</td>
@@ -2357,14 +1913,9 @@ function renderCandidatesBreakdownView() {
   
   // Calculate stats for each candidate
   let breakdownData = db.candidates.map(candidate => {
-    // Filter candidate applications if date is selected
-    const filteredApps = state.filterDate 
-      ? candidate.applications.filter(a => a.date === state.filterDate)
-      : candidate.applications;
-
-    const totalApps = filteredApps.length;
-    const easyCount = filteredApps.filter(a => a.type === "Easy Apply").length;
-    const externalCount = filteredApps.filter(a => a.type === "External Application").length;
+    const totalApps = candidate.applications.length;
+    const easyCount = candidate.applications.filter(a => a.type === "Easy Apply").length;
+    const externalCount = candidate.applications.filter(a => a.type === "External Application").length;
     
     // Find Owner TL & Member details
     const tl = db.teamLeaders.find(t => t.id === candidate.ownerTlId);
@@ -2375,10 +1926,10 @@ function renderCandidatesBreakdownView() {
     
     return {
       id: candidate.id,
-      name: getDisplayName(candidate.name),
+      name: candidate.name,
       email: candidate.email,
-      tlName: tl ? getDisplayName(tl.name) : "Unassigned",
-      memberName: member ? getDisplayName(member.name) : "Unassigned",
+      tlName: tl ? tl.name : "Unassigned",
+      memberName: member ? member.name : "Unassigned",
       totalApps,
       easyCount,
       externalCount,
@@ -2423,17 +1974,10 @@ function renderCandidatesBreakdownView() {
     ` : ''}
 
     <div class="card">
-      <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div class="card-header">
         <div>
           <h3 class="card-title">Candidate Applications Breakdown</h3>
           <span class="card-subtitle">Detailed audit showing application counts by submission channel and ratio balance warning flags</span>
-        </div>
-        
-        <!-- Date filter picker for breakdown -->
-        <div style="display:flex; align-items:center; gap:8px;">
-          <label style="font-size:12px; font-weight:600; color: var(--text-secondary);">Select Date:</label>
-          <input type="date" class="login-input" style="width:160px; padding: 4px 8px; height: 32px; font-size:12px;" onchange="handleDateFilterChange(event)" value="${state.filterDate}">
-          ${state.filterDate ? `<button class="btn btn-outline btn-sm" style="padding:4px 8px; height:32px; font-size:11px;" onclick="handleDateFilterChange({target:{value:''}})">Clear</button>` : ''}
         </div>
       </div>
       
@@ -2442,7 +1986,7 @@ function renderCandidatesBreakdownView() {
           <thead>
             <tr>
               <th>Candidate Name</th>
-              <th>Date</th>
+              <th>Email</th>
               <th>Assigned Team Lead</th>
               <th>Assigned Executive</th>
               <th style="text-align: center;">Total Applications</th>
@@ -2457,7 +2001,7 @@ function renderCandidatesBreakdownView() {
                 <td style="font-weight:600; text-transform: capitalize;">
                   ${isCandidateOnline(c.rawCandidate) ? '🟢 ' : ''}${c.name}
                 </td>
-                <td>${state.filterDate ? state.filterDate : 'All Dates'}</td>
+                <td>${c.email}</td>
                 <td style="text-transform: capitalize;">${c.tlName}</td>
                 <td style="text-transform: capitalize;">${c.memberName}</td>
                 <td style="font-weight: 700; text-align: center; color: var(--primary);">${c.totalApps}</td>
@@ -2491,199 +2035,6 @@ function renderCandidatesBreakdownView() {
   `;
 }
 
-function getInterviewBreakdownData() {
-  const db = getDb();
-
-  return db.teamLeaders.map(tl => {
-    const members = db.teamMembers.filter(member => member.tlId === tl.id).map(member => {
-      const candidates = db.candidates.filter(candidate => candidate.ownerMemberId === member.id).map(candidate => {
-        const interviews = candidate.applications
-          .filter(app => app.interviewDate && app.interviewDate !== "Pending")
-          .map(app => ({
-            company: app.company || "Unknown Company",
-            role: app.role || "Role not added",
-            date: app.date || "-",
-            interviewDate: app.interviewDate,
-            status: app.status || "Pending"
-          }));
-
-        return {
-          id: candidate.id,
-          name: getDisplayName(candidate.name),
-          interviews
-        };
-      });
-
-      const totalInterviews = candidates.reduce((sum, candidate) => sum + candidate.interviews.length, 0);
-      return {
-        id: member.id,
-        code: member.code || member.id,
-        name: getDisplayName(member.name),
-        candidates,
-        totalInterviews
-      };
-    });
-
-    const unassignedCandidates = db.candidates.filter(candidate => candidate.ownerTlId === tl.id && !members.some(member => member.id === candidate.ownerMemberId));
-    if (unassignedCandidates.length > 0) {
-      const candidates = unassignedCandidates.map(candidate => {
-        const interviews = candidate.applications
-          .filter(app => app.interviewDate && app.interviewDate !== "Pending")
-          .map(app => ({
-            company: app.company || "Unknown Company",
-            role: app.role || "Role not added",
-            date: app.date || "-",
-            interviewDate: app.interviewDate,
-            status: app.status || "Pending"
-          }));
-
-        return {
-          id: candidate.id,
-          name: getDisplayName(candidate.name),
-          interviews
-        };
-      });
-
-      members.push({
-        id: "unassigned",
-        code: "-",
-        name: "Unassigned",
-        candidates,
-        totalInterviews: candidates.reduce((sum, candidate) => sum + candidate.interviews.length, 0)
-      });
-    }
-
-    return {
-      id: tl.id,
-      name: getDisplayName(tl.name),
-      members,
-      totalInterviews: members.reduce((sum, member) => sum + member.totalInterviews, 0)
-    };
-  });
-}
-
-function selectInterviewTl(tlId) {
-  state.selectedInterviewTlId = tlId;
-  renderView();
-}
-
-function renderInterviewsBreakdownView() {
-  const teams = getInterviewBreakdownData();
-  const selectedTeam = teams.find(team => team.id === state.selectedInterviewTlId);
-  const totalInterviews = teams.reduce((sum, team) => sum + team.totalInterviews, 0);
-
-  if (!selectedTeam) {
-    return `
-      <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <button class="btn btn-outline btn-sm" onclick="switchView('dashboard')" style="padding: 6px 12px; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
-          <i class="ri-arrow-left-line"></i> Back to Dashboard
-        </button>
-        <span style="font-size:13px; font-weight:600; color: var(--text-secondary);">
-          Total Interviews: <span style="color: var(--text-primary); font-weight:700;">${totalInterviews}</span>
-        </span>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h3 class="card-title">Interview Performance</h3>
-            <span class="card-subtitle">Click a TL name to see member and candidate interview details</span>
-          </div>
-          <i class="ri-user-voice-line" style="color: var(--text-secondary); font-size: 20px;"></i>
-        </div>
-
-        <div class="interview-team-list">
-          ${teams.map(team => `
-            <button type="button" class="interview-team-row" onclick="selectInterviewTl('${team.id}')">
-              <span>${team.name} Team</span>
-              <span class="tag tag-info">${team.totalInterviews} interviews</span>
-            </button>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap:12px; flex-wrap:wrap;">
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="btn btn-outline btn-sm" onclick="state.selectedInterviewTlId=null; renderView();" style="padding: 6px 12px; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
-          <i class="ri-arrow-left-line"></i> All TLs
-        </button>
-        <button class="btn btn-outline btn-sm" onclick="switchView('dashboard')" style="padding: 6px 12px; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
-          Dashboard
-        </button>
-      </div>
-      <span style="font-size:13px; font-weight:600; color: var(--text-secondary);">
-        ${selectedTeam.name} Team: <span style="color: var(--text-primary); font-weight:700;">${selectedTeam.totalInterviews} interviews</span>
-      </span>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <h3 class="card-title">${selectedTeam.name} Team Interview Details</h3>
-          <span class="card-subtitle">Member-wise candidate interviews with submission date and interview date/time</span>
-        </div>
-      </div>
-
-      <div class="interview-member-list">
-        ${selectedTeam.members.map(member => `
-          <div class="interview-member-group">
-            <div class="interview-member-header">
-              <div>
-                <div class="interview-member-title">${member.name} <span class="tag tag-info">${member.code}</span></div>
-                <div class="interview-member-subtitle">${member.candidates.length} candidate profiles</div>
-              </div>
-              <span class="tag tag-warning">${member.totalInterviews} interviews</span>
-            </div>
-            <div class="table-responsive">
-              <table class="custom-table compact-interview-table">
-                <thead>
-                  <tr>
-                    <th>Candidate</th>
-                    <th>Company</th>
-                    <th>Role</th>
-                    <th>Submission Date</th>
-                    <th>Interview Date/Time</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${member.candidates.flatMap(candidate => (
-                    candidate.interviews.length > 0
-                      ? candidate.interviews.map(interview => `
-                        <tr>
-                          <td style="font-weight:700;">${candidate.name}</td>
-                          <td>${interview.company}</td>
-                          <td>${interview.role}</td>
-                          <td>${interview.date}</td>
-                          <td>${interview.interviewDate}</td>
-                          <td><span class="tag ${interview.status === 'Today' ? 'tag-warning' : interview.status === 'Upcoming' ? 'tag-info' : 'tag-secondary'}">${interview.status}</span></td>
-                        </tr>
-                      `)
-                      : [`
-                        <tr>
-                          <td style="font-weight:700;">${candidate.name}</td>
-                          <td colspan="5" style="color: var(--text-secondary);">No interviews added</td>
-                        </tr>
-                      `]
-                  )).join('')}
-                  ${member.candidates.length === 0 ? `
-                    <tr>
-                      <td colspan="6" style="color: var(--text-secondary); text-align:center; padding:18px;">No candidates assigned to this member.</td>
-                    </tr>
-                  ` : ''}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
-
 // 2. Team Leaders View
 function renderTeamLeadersView() {
   const db = getDb();
@@ -2712,7 +2063,6 @@ function renderTeamLeadersView() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>Code</th>
               <th>Team Leader</th>
               <th>Email</th>
               <th>Members</th>
@@ -2727,14 +2077,12 @@ function renderTeamLeadersView() {
               return `
                 <tr>
                   <td style="font-weight: 600; color: var(--text-secondary);">${t.id}</td>
-                  <td><span class="tag tag-info">${t.code || t.id}</span></td>
-                  <td style="font-weight: 600; text-transform: capitalize;">${getDisplayName(t.name)}</td>
+                  <td style="font-weight: 600; text-transform: capitalize;">${t.name}</td>
                   <td>${t.email}</td>
                   <td>${membersCount} Members</td>
                   <td>${candidatesCount}</td>
                   <td>
                     <button class="btn btn-secondary btn-sm" onclick="showTlDetails('${t.id}')">View Details</button>
-                    <button class="btn btn-outline btn-sm" onclick="updateTlDetails('${t.id}')"><i class="ri-edit-line"></i> Edit</button>
                   </td>
                 </tr>
               `;
@@ -2743,6 +2091,9 @@ function renderTeamLeadersView() {
         </table>
       </div>
     </div>
+    
+    <!-- Render TL Popover if selected -->
+    ${state.selectedTlId ? renderTlDetailsPopover() : ''}
   `;
 }
 
@@ -2770,11 +2121,7 @@ function renderTlDetailsPopover() {
       <div class="popover-body">
         <div class="popover-row">
           <span class="popover-label">Name:</span>
-          <span class="popover-val">${getDisplayName(tl.name)}</span>
-        </div>
-        <div class="popover-row">
-          <span class="popover-label">Code:</span>
-          <span class="popover-val">${tl.code || tl.id}</span>
+          <span class="popover-val">${tl.name}</span>
         </div>
         <div class="popover-row">
           <span class="popover-label">User ID:</span>
@@ -2794,14 +2141,9 @@ function renderTlDetailsPopover() {
           <span class="tag tag-success" style="font-size: 10px;">${tl.permission}</span>
         </div>
       </div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-outline btn-sm" style="flex: 1;" onclick="updateTlDetails('${tl.id}')">
-          <i class="ri-edit-line"></i> Edit
-        </button>
-        <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="copyTlLogin('${tl.userId}', '${tl.password}')">
-          <i class="ri-file-copy-line"></i> Copy Login
-        </button>
-      </div>
+      <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="copyTlLogin('${tl.userId}', '${tl.password}')">
+        <i class="ri-file-copy-line"></i> Copy Login
+      </button>
     </div>
   `;
 }
@@ -2823,11 +2165,11 @@ function renderTeamMembersView() {
   
   if (state.searchQuery) {
     const q = state.searchQuery.toLowerCase();
-    members = members.filter(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.code || m.id).toLowerCase().includes(q));
+    members = members.filter(m => m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q));
   }
   
   const showAddBtn = state.currentUser.role === 'admin' || state.currentUser.role === 'tl';
-  const displayTeamTitle = state.currentUser.role === "tl" ? `Members under ${getDisplayName(state.currentUser.name)} Team` : "All Team Members";
+  const displayTeamTitle = state.currentUser.role === "tl" ? `Members under ${state.currentUser.name} Team` : "All Team Members";
   
   return `
     ${showAddBtn ? `
@@ -2840,7 +2182,7 @@ function renderTeamMembersView() {
       <div class="card-header">
         <div>
           <h3 class="card-title">${displayTeamTitle}</h3>
-          <span class="card-subtitle">Manage team member details and assigned candidate sheets</span>
+          <span class="card-subtitle">Manage candidate sheet assignment access</span>
         </div>
       </div>
       
@@ -2849,10 +2191,10 @@ function renderTeamMembersView() {
           <thead>
             <tr>
               <th>Sr No</th>
-              <th>Member Code</th>
               <th>Member Name</th>
               <th>Email</th>
               <th>Candidate Count</th>
+              <th>Access</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -2862,15 +2204,14 @@ function renderTeamMembersView() {
               return `
                 <tr>
                   <td style="font-weight: 600; color: var(--text-secondary);">${String(idx + 1).padStart(2, '0')}</td>
-                  <td><span class="tag tag-info">${m.code || m.id}</span></td>
-                  <td style="font-weight: 600; text-transform: capitalize;">${getDisplayName(m.name)}</td>
+                  <td style="font-weight: 600; text-transform: capitalize;">${m.name}</td>
                   <td>${m.email}</td>
                   <td>${candidateCount} Candidates</td>
                   <td>
+                    <span class="tag tag-success">${m.access}</span>
+                  </td>
+                  <td>
                     <button class="btn btn-outline btn-sm" onclick="openMemberSheet('${m.id}')">Open</button>
-                    ${state.currentUser.role === 'admin' || state.currentUser.role === 'tl' ? `
-                      <button class="btn btn-secondary btn-sm" onclick="updateMemberDetails('${m.id}')"><i class="ri-edit-line"></i> Edit</button>
-                    ` : ''}
                   </td>
                 </tr>
               `;
@@ -2882,7 +2223,7 @@ function renderTeamMembersView() {
     
     <div class="sheet-disclaimer-banner" style="background-color: var(--primary-light); border-color: #b3d4ff; color: var(--primary);">
       <i class="ri-information-line"></i>
-      <span>Important: Candidates remain view-only. Admin, Team Leaders, and Members can edit application rows.</span>
+      <span>Important: Candidate name is added only by Team Leader. Member can view sheet and copy links, but cannot edit protected candidate fields.</span>
     </div>
   `;
 }
@@ -2913,6 +2254,12 @@ function renderCandidatesSheetView() {
     visibleCandidates = db.candidates.filter(c => c.id === state.currentUser.id);
   }
   
+  // If search query is present
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    visibleCandidates = visibleCandidates.filter(c => c.name.toLowerCase().includes(q));
+  }
+  
   // Check if our active candidate is still in the visible candidates list
   let currentCandidate = visibleCandidates.find(c => c.id === state.selectedCandidateId);
   if (!currentCandidate && visibleCandidates.length > 0) {
@@ -2938,28 +2285,16 @@ function renderCandidatesSheetView() {
     if (state.filterDate) {
       appsToRender = appsToRender.filter(a => a.date === state.filterDate);
     }
-
-    if (state.searchQuery) {
-      const q = state.searchQuery.toLowerCase();
-      appsToRender = appsToRender.filter(a =>
-        (a.company || '').toLowerCase().includes(q) ||
-        (a.role || '').toLowerCase().includes(q) ||
-        (a.link || '').toLowerCase().includes(q) ||
-        (a.interviewDate || '').toLowerCase().includes(q) ||
-        getApplicationEmployeeCode(currentCandidate, a).toLowerCase().includes(q) ||
-        getDisplayName(currentCandidate.name).toLowerCase().includes(q)
-      );
-    }
     
     // Check if we should append a placeholder row
     let shouldAddPlaceholder = false;
-    if (canEdit && !state.filterDate && !state.searchQuery) {
+    if (canEdit && !state.filterDate) {
       if (appsToRender.length === 0) {
         shouldAddPlaceholder = true;
       } else {
         const lastApp = appsToRender[appsToRender.length - 1];
-        // Only open the next row if company, role, and link are filled.
-        if (isApplicationRowComplete(lastApp)) {
+        // Only open the next row if the last row has both Company Name and Role filled
+        if (lastApp.company.trim() !== '' && lastApp.role.trim() !== '') {
           shouldAddPlaceholder = true;
         }
       }
@@ -2970,7 +2305,7 @@ function renderCandidatesSheetView() {
         srNo: appsToRender.length + 1,
         company: '',
         role: '',
-        date: getNewYorkDateTime().date,
+        date: '',
         type: 'Easy Apply',
         link: '',
         interviewDate: '',
@@ -2989,16 +2324,16 @@ function renderCandidatesSheetView() {
             <div>
               <span class="candidate-detail-label">Candidate Name:</span>
               <span class="candidate-detail-value" style="text-transform: capitalize;">
-                ${getDisplayName(currentCandidate.name)} ${isCandidateOnline(currentCandidate) ? '<span class="tag tag-success" style="font-size:10px; margin-left:8px; padding:2px 6px; border-radius:12px;">🟢 Online</span>' : ''}
+                ${currentCandidate.name} ${isCandidateOnline(currentCandidate) ? '<span class="tag tag-success" style="font-size:10px; margin-left:8px; padding:2px 6px; border-radius:12px;">🟢 Online</span>' : ''}
               </span>
             </div>
             <div>
               <span class="candidate-detail-label">Assigned Leader:</span>
-              <span class="candidate-detail-value">${ownerTl ? getDisplayName(ownerTl.name) : 'Unassigned'}</span>
+              <span class="candidate-detail-value">${ownerTl ? ownerTl.name : 'Unassigned'}</span>
             </div>
             <div>
               <span class="candidate-detail-label">Assigned Executive:</span>
-              <span class="candidate-detail-value">${ownerMember ? `${getDisplayName(ownerMember.name)} (${ownerMember.code || ownerMember.id})` : 'Unassigned'}</span>
+              <span class="candidate-detail-value">${ownerMember ? ownerMember.name : 'Unassigned'}</span>
             </div>
             <div>
               <span class="candidate-detail-label">Main Resume:</span>
@@ -3026,22 +2361,20 @@ function renderCandidatesSheetView() {
               <thead>
                 <tr>
                   <th style="width: 60px;">Sr No</th>
-                  <th style="width: 110px;">Employee Code</th>
                   <th>Company Name</th>
                   <th>Role</th>
                   <th style="width: 130px;">Date</th>
-                  <th style="width: 190px;">Apply Type</th>
-              <th>Link</th>
-              <th>Interview Date/Time</th>
-              <th style="width: 150px; text-align: center;">Tailored Resume</th>
-              <th style="width: 80px;">Action</th>
+                  <th style="width: 170px;">Apply Type</th>
+                  <th>Link</th>
+                  <th>Interview Date/Time</th>
+                  <th style="width: 150px; text-align: center;">Tailored Resume</th>
+                  <th style="width: 80px;">Action</th>
                 </tr>
               </thead>
               <tbody>
                 ${appsToRender.map(app => `
                   <tr data-srno="${app.srNo}">
                     <td style="font-weight:600; text-align:center; color: var(--text-muted);">${app.srNo}</td>
-                    <td><span class="tag tag-info">${getApplicationEmployeeCode(currentCandidate, app) || '-'}</span></td>
                     <td>${app.company}</td>
                     <td>${app.role}</td>
                     <td>${app.date}</td>
@@ -3062,7 +2395,7 @@ function renderCandidatesSheetView() {
                 `).join('')}
                 ${appsToRender.length === 0 ? `
                   <tr>
-                    <td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 24px;">${state.searchQuery ? 'No matching company/application found.' : 'No applications added yet.'}</td>
+                    <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 24px;">No applications added yet.</td>
                   </tr>
                 ` : ''}
               </tbody>
@@ -3094,7 +2427,7 @@ function renderCandidatesSheetView() {
         <select class="login-input" style="width:220px; padding: 6px 12px;" onchange="changeActiveCandidate(this.value)">
           ${visibleCandidates.map(c => {
             const onlineDot = isCandidateOnline(c) ? "🟢 " : "";
-            return `<option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${onlineDot}${getDisplayName(c.name)}</option>`;
+            return `<option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${onlineDot}${c.name}</option>`;
           }).join('')}
         </select>
         
@@ -3127,16 +2460,16 @@ function renderCandidatesSheetView() {
           <div>
             <span class="candidate-detail-label">Candidate:</span>
             <span class="candidate-detail-value" style="text-transform: capitalize;">
-              ${getDisplayName(currentCandidate.name)} ${isCandidateOnline(currentCandidate) ? '<span class="tag tag-success" style="font-size:10px; margin-left:8px; padding:2px 6px; border-radius:12px;">🟢 Online</span>' : ''}
+              ${currentCandidate.name} ${isCandidateOnline(currentCandidate) ? '<span class="tag tag-success" style="font-size:10px; margin-left:8px; padding:2px 6px; border-radius:12px;">🟢 Online</span>' : ''}
             </span>
           </div>
           <div>
             <span class="candidate-detail-label">Owner TL:</span>
-            <span class="candidate-detail-value">${ownerTl ? getDisplayName(ownerTl.name) : 'Unassigned'}</span>
+            <span class="candidate-detail-value">${ownerTl ? ownerTl.name : 'Unassigned'}</span>
           </div>
           <div>
             <span class="candidate-detail-label">Member:</span>
-            <span class="candidate-detail-value">${ownerMember ? `${getDisplayName(ownerMember.name)} (${ownerMember.code || ownerMember.id})` : 'Unassigned'}</span>
+            <span class="candidate-detail-value">${ownerMember ? ownerMember.name : 'Unassigned'}</span>
           </div>
           <div>
             <span class="candidate-detail-label">Main Resume:</span>
@@ -3157,11 +2490,10 @@ function renderCandidatesSheetView() {
             <thead>
               <tr>
                 <th style="width: 60px;">Sr No</th>
-                <th style="width: 110px;">Employee Code</th>
                 <th>Company Name</th>
                 <th>Role</th>
                 <th style="width: 130px;">Date</th>
-                <th style="width: 190px;">Apply Type</th>
+                <th style="width: 170px;">Apply Type</th>
                 <th>Link</th>
                 <th>Interview Date/Time</th>
                 <th style="width: 160px; text-align: center;">Tailored Resume</th>
@@ -3172,7 +2504,6 @@ function renderCandidatesSheetView() {
               ${appsToRender.map(app => `
                 <tr data-srno="${app.srNo}">
                   <td style="font-weight:600; text-align:center; color: var(--text-muted);">${app.srNo}</td>
-                  <td><span class="tag tag-info">${getApplicationEmployeeCode(currentCandidate, app) || '-'}</span></td>
                   
                   <td>
                     ${canEdit ? `
@@ -3194,7 +2525,7 @@ function renderCandidatesSheetView() {
                   
                   <td>
                     ${canEdit ? `
-                      <select class="cell-edit apply-type-select ${app.type === 'External Application' ? 'apply-type-external' : 'apply-type-easy'}" data-field="type">
+                      <select class="cell-edit" data-field="type" style="padding: 4px 6px;">
                         <option value="Easy Apply" ${app.type === 'Easy Apply' ? 'selected' : ''}>Easy Apply</option>
                         <option value="External Application" ${app.type === 'External Application' ? 'selected' : ''}>External Application</option>
                       </select>
@@ -3212,7 +2543,7 @@ function renderCandidatesSheetView() {
                       <input type="text" class="cell-edit" data-field="interviewDate" value="${app.interviewDate}" placeholder="e.g. Pending or date...">
                     ` : app.interviewDate}
                   </td>
-
+                  
                   <td style="text-align: center; vertical-align: middle;">
                     ${renderTailoredResumeUI(currentCandidate.id, app)}
                   </td>
@@ -3236,7 +2567,7 @@ function renderCandidatesSheetView() {
               `).join('')}
               ${appsToRender.length === 0 ? `
                 <tr>
-                  <td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 24px;">${state.searchQuery ? 'No matching company/application found.' : 'No applications added yet.'}</td>
+                  <td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 24px;">No applications added yet.</td>
                 </tr>
               ` : ''}
             </tbody>
@@ -3244,7 +2575,17 @@ function renderCandidatesSheetView() {
         </div>
       </div>
       
-
+      <!-- Bottom information sheets -->
+      <div class="sheet-details-bottom-grid">
+        <div class="info-box">
+          <div class="info-box-title">Dropdown field rules</div>
+          <div class="info-box-content">Apply Type dropdown toggle supports "Easy Apply" (green badge) and "External Application" (purple badge) configurations. Ensure type parameters align with application methods.</div>
+        </div>
+        <div class="info-box">
+          <div class="info-box-title">Share Permission</div>
+          <div class="info-box-content">Team Members can add job application rows, paste spreadsheet data, and edit row details. Candidate profile name and assignments are managed only by Team Leader / Admin.</div>
+        </div>
+      </div>
     ` : `
       <div class="card" style="text-align: center; padding: 48px; color: var(--text-secondary);">
         <i class="ri-user-unfollow-line" style="font-size:48px; display:block; margin-bottom:16px;"></i>
@@ -3257,7 +2598,6 @@ function renderCandidatesSheetView() {
 
 function changeActiveCandidate(id) {
   state.selectedCandidateId = id;
-  updateHashFromState();
   renderView();
 }
 
@@ -3276,10 +2616,6 @@ function setupSheetCellListeners() {
       const field = e.target.getAttribute("data-field");
       const val = e.target.value;
       updateApplicationCell(state.selectedCandidateId, srNo, field, val);
-      if (field === "type") {
-        e.target.classList.toggle("apply-type-easy", val === "Easy Apply");
-        e.target.classList.toggle("apply-type-external", val === "External Application");
-      }
       showToast("Cell updated!");
     });
     
@@ -3298,7 +2634,7 @@ function renderCalendarView() {
     c.applications.forEach(app => {
       if (app.interviewDate && app.interviewDate !== "Pending") {
         events.push({
-          candidateName: getDisplayName(c.name),
+          candidateName: c.name,
           company: app.company,
           role: app.role,
           dateStr: app.interviewDate, // e.g. "21 Jun, 11:30 AM"
@@ -3373,21 +2709,16 @@ function renderSettingsView() {
           <h3 class="card-title">Account Settings</h3>
           <span class="card-subtitle">Manage details of the logged in user</span>
         </div>
-        ${state.currentUser.role === "tl" ? `
-          <button type="button" class="btn btn-secondary btn-sm" onclick="updateTlDetails('${state.currentUser.id}')">
-            <i class="ri-edit-line"></i> Edit My Details
-          </button>
-        ` : ''}
       </div>
       
       <div style="display:flex; flex-direction:column; gap:16px;">
         <div class="login-form-group">
           <label class="login-label">Name</label>
-          <input type="text" class="login-input" value="${getDisplayName(state.currentUser.name)}" readonly>
+          <input type="text" class="login-input" value="${state.currentUser.name}" readonly style="background-color:#f1f5f9;">
         </div>
         <div class="login-form-group">
           <label class="login-label">Email Address</label>
-          <input type="text" class="login-input" value="${state.currentUser.email}" readonly>
+          <input type="text" class="login-input" value="${state.currentUser.email}" readonly style="background-color:#f1f5f9;">
         </div>
         <div class="login-form-group">
           <label class="login-label">Account Role</label>
@@ -3516,13 +2847,12 @@ function handleAddRowInline() {
     srNo: candidate.applications.length + 1,
     company: '',
     role: '',
-    date: getNewYorkDateTime().date,
+    date: new Date().toISOString().split('T')[0],
     type: 'Easy Apply',
     link: '',
     interviewDate: 'Pending',
     status: 'Pending'
   };
-  stampApplicationHandler(candidate, newRow, true);
   
   candidate.applications.push(newRow);
   saveDb(db);
@@ -3601,13 +2931,12 @@ function handleTablePaste(e) {
         srNo: targetSrNo,
         company: '',
         role: '',
-        date: getNewYorkDateTime().date,
+        date: new Date().toISOString().split('T')[0],
         type: 'Easy Apply',
         link: '',
         interviewDate: 'Pending',
         status: 'Pending'
       };
-      stampApplicationHandler(candInDb, appRow, true);
       candInDb.applications.push(appRow);
     }
     
@@ -3629,7 +2958,6 @@ function handleTablePaste(e) {
         }
         
         appRow[fieldName] = cleanedVal;
-        stampApplicationHandler(candInDb, appRow, state.currentUser && state.currentUser.role === "member");
         
         // Auto-update status if interviewDate changes
         if (fieldName === 'interviewDate') {
@@ -3658,8 +2986,8 @@ function renderMemberSelectionView() {
   const candidates = db.candidates;
   
   container.innerHTML = `
-    <div style="display: flex; justify-content: center; align-items: center; padding: 40px 0; min-height: calc(100vh - var(--header-height) - 100px);">
-      <div class="login-card" style="box-shadow: var(--shadow-md); border: 1px solid var(--border-color); max-width: 500px; width: 100%;">
+    <div class="login-center-layout" style="min-height: auto; padding: 40px 0; background: transparent;">
+      <div class="login-card" style="box-shadow: var(--shadow-md); border: 1px solid var(--border-color); max-width: 500px;">
         <div class="login-card-header">
           <h2 class="login-card-title" style="font-size: 22px;">Candidate Selection</h2>
           <div class="login-card-subtitle">Choose candidate and request TL Authorization to open candidate sheet</div>
@@ -3671,7 +2999,7 @@ function renderMemberSelectionView() {
             <select id="auth-candidate-select" class="login-input" style="padding: 10px 12px; height:42px;" required>
               ${candidates.map(c => {
                 const onlineDot = isCandidateOnline(c) ? "🟢 " : "";
-                return `<option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${onlineDot}${getDisplayName(c.name)}</option>`;
+                return `<option value="${c.id}" ${c.id === state.selectedCandidateId ? 'selected' : ''}>${onlineDot}${c.name}</option>`;
               }).join('')}
             </select>
           </div>
@@ -3694,10 +3022,6 @@ function renderMemberSelectionView() {
           
           <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">
             <i class="ri-key-2-line"></i> Verify & Open Sheet
-          </button>
-
-          <button type="button" class="btn btn-outline" onclick="handleLogout()" style="width: 100%; margin-top: 12px; gap: 8px;">
-            <i class="ri-logout-box-r-line"></i> Log Out / Switch User
           </button>
         </form>
       </div>
@@ -3733,14 +3057,14 @@ function handleTlAuthorization(event) {
     state.selectedCandidateId = candId;
     state.currentView = "candidates-sheet";
     renderApp();
-    showToast(`Unlocked successfully! Authorized by TL ${getDisplayName(tl.name)}.`);
+    showToast(`Unlocked successfully! Authorized by TL ${tl.name}.`);
   } else {
     // Candidate belongs to another team!
     // Show a confirmation dialog to add/transfer candidate to this team
     const otherTl = db.teamLeaders.find(t => t.id === candidate.ownerTlId);
-    const otherTlName = otherTl ? getDisplayName(otherTl.name) : 'another team';
+    const otherTlName = otherTl ? otherTl.name : 'another team';
     
-    if (confirm(`This candidate currently belongs to ${otherTlName}. Do you want TL ${getDisplayName(tl.name)} to add/transfer this candidate to their team?`)) {
+    if (confirm(`This candidate currently belongs to ${otherTlName}. Do you want TL ${tl.name} to add/transfer this candidate to their team?`)) {
       const oldMemberId = candidate.ownerMemberId;
       const oldTlId = candidate.ownerTlId;
       
@@ -3770,7 +3094,7 @@ function handleTlAuthorization(event) {
       state.selectedCandidateId = candId;
       state.currentView = "candidates-sheet";
       renderApp();
-      showToast(`Candidate transferred to TL ${getDisplayName(tl.name)} and unlocked!`);
+      showToast(`Candidate transferred to TL ${tl.name} and unlocked!`);
     }
   }
 }
@@ -3792,18 +3116,6 @@ function resetDatabase() {
 
 // --- Initialize App ---
 document.addEventListener("DOMContentLoaded", () => {
-  // If no active sessionStorage exists, default to admin login screen
-  const session = sessionStorage.getItem("recruit_crm_session");
-  if (!session) {
-    state.currentUser = null;
-    state.loginType = "admin";
-  }
-
-  const app = document.getElementById("app");
-  if (app) {
-    app.innerHTML = renderSplashScreen();
-  }
-
   // Load Google Drive session and auth client
   loadGoogleDriveSession();
   initGoogleDriveAuth();
@@ -3819,32 +3131,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Seed/Load database
   getDb();
   
-  // Run app renderer after welcome animation
-  setTimeout(() => {
-    // Sync state from initial hash if present
-    const { view, params } = getHashRoute();
-    const validViews = ["dashboard", "team-leaders", "team-members", "candidates-sheet", "interviews-breakdown", "interview-calendar", "settings"];
-    if (validViews.includes(view)) {
-      state.currentView = view;
-      if (view === "candidates-sheet" && params.candId) {
-        state.selectedCandidateId = params.candId;
-      }
-    }
-    
-    // Register hash listener
-    window.addEventListener("hashchange", handleHashChange);
-    
-    renderApp();
-    pullFromCloud();
-    if (state.googleDriveConnected) {
-      syncDbToGoogleDrive();
-    }
-  }, 3600);
+  // Run app renderer
+  renderApp();
   
-  setInterval(() => {
-    updateNewYorkTimePanel();
-  }, 1000);
-
+  // Pull from cloud on load and set up polling
+  pullFromCloud();
+  if (state.googleDriveConnected) {
+    syncDbToGoogleDrive();
+  }
+  
   setInterval(() => {
     updateCandidateActivity();
     pullFromCloud();
